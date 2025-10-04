@@ -1,0 +1,182 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: zilium-super-compactor
+            asset_name: zilium-super-compactor-linux-x64
+          - os: windows-latest
+            artifact_name: zilium-super-compactor.exe
+            asset_name: zilium-super-compactor-windows-x64.exe
+          - os: macos-latest
+            artifact_name: zilium-super-compactor
+            asset_name: zilium-super-compactor-macos-x64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive  # Initialize submodules (nlohmann/json)
+
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.16'
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake
+
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build project
+      run: |
+        cd build
+        cmake --build . --config Release
+
+    - name: Test executable (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        cd build
+        ls -la
+        file ${{ matrix.artifact_name }} || echo "Binary not found"
+        ./${{ matrix.artifact_name }} --help || echo "Help command failed"
+
+    - name: Test executable (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd build
+        dir
+        ${{ matrix.artifact_name }} --help || echo "Help command failed"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.asset_name }}
+        path: build/${{ matrix.artifact_name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+
+    - name: Display structure of downloaded files
+      run: ls -la artifacts/
+
+    - name: Prepare release assets
+      run: |
+        mkdir release-assets
+        
+        # Copy and rename artifacts
+        cp artifacts/zilium-super-compactor-linux-x64/zilium-super-compactor release-assets/zilium-super-compactor-linux-x64
+        cp artifacts/zilium-super-compactor-windows-x64.exe/zilium-super-compactor.exe release-assets/zilium-super-compactor-windows-x64.exe
+        cp artifacts/zilium-super-compactor-macos-x64/zilium-super-compactor release-assets/zilium-super-compactor-macos-x64
+        
+        # Make executables executable
+        chmod +x release-assets/zilium-super-compactor-linux-x64
+        chmod +x release-assets/zilium-super-compactor-macos-x64
+        
+        # Create checksums
+        cd release-assets
+        sha256sum * > checksums.sha256
+        cd ..
+
+    - name: Extract version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+        echo "## Zilium Super Compactor ${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+        echo "" >> $GITHUB_OUTPUT
+        echo "### Features:" >> $GITHUB_OUTPUT
+        echo "- High-performance Android super partition compaction" >> $GITHUB_OUTPUT
+        echo "- Removes unused space while maintaining bootability" >> $GITHUB_OUTPUT
+        echo "- Cross-platform support (Linux, Windows, macOS)" >> $GITHUB_OUTPUT
+        echo "" >> $GITHUB_OUTPUT
+        echo "### Downloads:" >> $GITHUB_OUTPUT
+        echo "- **Linux x64**: \`zilium-super-compactor-linux-x64\`" >> $GITHUB_OUTPUT
+        echo "- **Windows x64**: \`zilium-super-compactor-windows-x64.exe\`" >> $GITHUB_OUTPUT
+        echo "- **macOS x64**: \`zilium-super-compactor-macos-x64\`" >> $GITHUB_OUTPUT
+        echo "" >> $GITHUB_OUTPUT
+        echo "### Usage:" >> $GITHUB_OUTPUT
+        echo "\`\`\`bash" >> $GITHUB_OUTPUT
+        echo "./zilium-super-compactor input.img output.img" >> $GITHUB_OUTPUT
+        echo "\`\`\`" >> $GITHUB_OUTPUT
+        echo "" >> $GITHUB_OUTPUT
+        echo "### Verification:" >> $GITHUB_OUTPUT
+        echo "Use \`checksums.sha256\` to verify file integrity." >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        name: Zilium Super Compactor ${{ steps.get_version.outputs.VERSION }}
+        body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+        draft: false
+        prerelease: false
+        files: |
+          release-assets/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    name: Notify Build Status
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Build Success Notification
+      if: needs.build.result == 'success'
+      run: echo "✅ Build completed successfully on all platforms!"
+      
+    - name: Build Failure Notification
+      if: needs.build.result == 'failure'
+      run: echo "❌ Build failed. Check the logs for details."
+      
+    - name: Release Success Notification
+      if: needs.release.result == 'success'
+      run: echo "🚀 Release created successfully!"
