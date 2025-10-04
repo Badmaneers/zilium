@@ -1,0 +1,150 @@
+# Zilium Super Compactor - Git Ignore File
+
+# Build directories
+build/
+bin/
+obj/
+*.o
+*.a
+*.so
+*.dylib
+
+# Executables
+zilium-super-compactor
+zilium_super_compactor
+lpmake
+lpunpack
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Dependencies (these should be cloned/downloaded)
+external/json/
+lpunpack_and_lpmake/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.code-workspace
+
+# Compiled Object files
+*.slo
+*.lo
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.la
+
+# Shared objects
+*.dll
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# ROM files (too large for git)
+*.img
+*.bin
+*.raw
+*.sparse
+super.img
+payload.bin
+
+# Test/Example ROM folders
+test-rom/
+example-rom/
+rom-extract/
+*-extract/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Log files
+*.log
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Package files
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Documentation build
+docs/_build/
+docs/.doctrees/
+
+# Python (if adding Python scripts later)
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+.pytest_cache/
+
+# Node (if adding web interface later)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# macOS
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Keep directory structure templates
+!.gitkeep
