@@ -11,9 +11,12 @@ obj/
 
 # Executables
 zilium-super-compactor
-zilium_super_compactor
-lpmake
-lpunpack
+# Note: LP tools source code is included, only ignore built binaries
+lpunpack_and_lpmake/bin/lpmake
+lpunpack_and_lpmake/bin/lpunpack
+lpunpack_and_lpmake/bin/lpadd
+lpunpack_and_lpmake/bin/lpdump  
+lpunpack_and_lpmake/bin/lpflash
 
 # CMake
 CMakeCache.txt
@@ -25,7 +28,6 @@ Makefile
 
 # Dependencies (these should be cloned/downloaded)
 external/json/
-lpunpack_and_lpmake/
 
 # IDE and Editor files
 .vscode/
