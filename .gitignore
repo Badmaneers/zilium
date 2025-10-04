@@ -26,9 +26,6 @@ Makefile
 *.cmake
 !CMakeLists.txt
 
-# Dependencies (these should be cloned/downloaded)
-external/json/
-
 # IDE and Editor files
 .vscode/
 .idea/
