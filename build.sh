@@ -13,6 +13,7 @@ BUILD_MODE="Debug"
 CREATE_RELEASE=false
 CLEAN_BUILD=false
 REBUILD_LPTOOLS=false
+BUILD_GUI=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -42,6 +43,7 @@ Options:
   -c, --clean         Clean build directory before building
   -l, --lptools       Force rebuild of LP tools (lpmake, lpunpack)
   -p, --package       Create release package (tar.gz)
+  -g, --gui           Build Qt6 GUI application (requires Qt6)
   
 Build Modes:
   Debug (default)     Build with debug symbols
@@ -53,6 +55,8 @@ Examples:
   $0 --release --package      # Release build + create package
   $0 --clean --release        # Clean + Release build
   $0 --lptools                # Force rebuild LP tools + zilium_super_compactor
+  $0 --gui                    # Build CLI + GUI
+  $0 --release --gui --package  # Build everything and package
 
 EOF
     exit 0
@@ -111,6 +115,10 @@ parse_args() {
                 BUILD_MODE="Release"  # Force release mode for packaging
                 shift
                 ;;
+            -g|--gui)
+                BUILD_GUI=true
+                shift
+                ;;
             *)
                 echo -e "${RED}Unknown option: $1${NC}"
                 print_usage
@@ -137,39 +145,219 @@ create_release_package() {
     cp lpunpack_and_lpmake/bin/lpunpack "dist/${RELEASE_DIR}/bin/" 2>/dev/null || true
     cp lpunpack_and_lpmake/bin/lpdump "dist/${RELEASE_DIR}/bin/" 2>/dev/null || true
     
+    # Copy GUI binary if it exists
+    local HAS_GUI=false
+    if [ -f "build/gui/zilium-gui" ]; then
+        print_step "Copying GUI binary..."
+        cp build/gui/zilium-gui "dist/${RELEASE_DIR}/bin/"
+        HAS_GUI=true
+        print_success "GUI binary included in package"
+    fi
+    
     # Strip binaries for smaller size
     print_step "Stripping debug symbols..."
     strip "dist/${RELEASE_DIR}/bin/"* 2>/dev/null || true
     
-    # Note: No documentation files copied (as per user request)
+    # Copy license
+    if [ -f "LICENSE" ]; then
+        print_step "Copying license..."
+        cp LICENSE "dist/${RELEASE_DIR}/"
+        print_success "License file included"
+    fi
     
-    # Create README for package
+    # Create run.sh script for GUI
+    if [ "$HAS_GUI" = true ]; then
+        print_step "Creating run.sh launcher..."
+        cat > "dist/${RELEASE_DIR}/run.sh" << 'RUN_SCRIPT_EOF'
+#!/bin/bash
+
+# Zilium GUI Launcher Script
+# This script ensures the GUI runs with the correct library paths
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GUI_BINARY="${SCRIPT_DIR}/bin/zilium-gui"
+
+# Check if GUI binary exists
+if [ ! -f "$GUI_BINARY" ]; then
+    echo "Error: zilium-gui not found at $GUI_BINARY"
+    echo "This package may not include the GUI component."
+    echo ""
+    echo "To use the CLI tool instead:"
+    echo "  ./bin/zilium-super-compactor <rom-folder>"
+    exit 1
+fi
+
+# Check if binary is executable
+if [ ! -x "$GUI_BINARY" ]; then
+    echo "Making GUI binary executable..."
+    chmod +x "$GUI_BINARY"
+fi
+
+# Add bin directory to PATH for LP tools
+export PATH="${SCRIPT_DIR}/bin:${PATH}"
+
+# Launch GUI
+echo "Starting Zilium Super Compactor GUI..."
+cd "$SCRIPT_DIR"
+exec "$GUI_BINARY" "$@"
+RUN_SCRIPT_EOF
+        chmod +x "dist/${RELEASE_DIR}/run.sh"
+        print_success "run.sh launcher created"
+    fi
+    
+    # Create comprehensive README.txt for package
+    print_step "Creating README.txt..."
     cat > "dist/${RELEASE_DIR}/README.txt" << README_EOF
-Zilium Super Compactor v${VERSION}
-================================
+╔═══════════════════════════════════════════════════════════╗
+║         Zilium Super Compactor v${VERSION}                    ║
+║    Advanced Super Partition Image Rebuilder              ║
+╚═══════════════════════════════════════════════════════════╝
 
-Combines split super partition images into a single super.img
-for Realme/OPPO/OnePlus devices with stock vbmeta compatibility.
+ABOUT
+-----
+Zilium Super Compactor is a powerful tool that combines split 
+super partition images into a single, optimized super.img file
+for Realme, OPPO, and OnePlus devices while maintaining full
+compatibility with stock vbmeta verification.
 
-Contents:
-  bin/zilium_super_compactor  - Main tool (self-contained)
-  bin/lpmake          - LP partition tool (bundled)
-  bin/lpunpack        - LP unpacker (bundled)
-  bin/lpdump          - LP metadata dumper (bundled)
+KEY FEATURES
+------------
+✓ Stock VBMeta Compatible   - Works with locked bootloaders
+✓ A/B & Non-A/B Support     - Handles both slot configurations  
+✓ Self-Contained            - All tools bundled, no dependencies
+✓ Fast & Efficient          - Optimized C++ implementation
+✓ Auto-Detection            - Reads original OEM parameters
+✓ GUI & CLI Modes           - Choose your preferred interface
+
+PACKAGE CONTENTS
+----------------
+$(if [ "$HAS_GUI" = true ]; then echo "  run.sh                      - Quick launcher for GUI"; fi)
+  bin/zilium-super-compactor  - Main CLI tool
+$(if [ "$HAS_GUI" = true ]; then echo "  bin/zilium-gui              - Qt6 GUI application"; fi)
+  bin/lpmake                  - LP partition tool (bundled)
+  bin/lpunpack                - LP unpacker (bundled)
+  bin/lpdump                  - LP metadata dumper (bundled)
+  README.txt                  - This file
+  LICENSE                     - MIT License
+
+QUICK START
+-----------
+$(if [ "$HAS_GUI" = true ]; then 
+echo "GUI Mode (Recommended for Beginners):
+  1. Make the launcher executable:
+     chmod +x run.sh
   
-Usage:
-  ./bin/zilium_super_compactor <rom-folder>
+  2. Run the GUI:
+     ./run.sh
   
-The tool automatically:
-  - Detects bundled lpmake in same directory
-  - Reads original OEM metadata parameters
-  - Rebuilds super.img with identical structure
-  - Ensures compatibility with stock vbmeta
+  3. Use the graphical interface to:
+     - Select your ROM folder
+     - Choose output location
+     - Monitor real-time progress
+     - Validate and verify output
 
-Build: ${BUILD_MODE}
-Date: $(date)
-System: $(uname -s) $(uname -m)
+"; fi)CLI Mode (Advanced Users):
+  1. Make the binary executable:
+     chmod +x bin/zilium-super-compactor
+  
+  2. Run the tool:
+     ./bin/zilium-super-compactor /path/to/rom/folder
+  
+  Example:
+     ./bin/zilium-super-compactor ~/Downloads/ColorOS_A.15/
+
+USAGE EXAMPLES
+--------------
+# Extract firmware first (if needed)
+unzip RMX3500_11_F.29_*.ofp
+
+# Run Zilium$(if [ "$HAS_GUI" = true ]; then echo " GUI"; fi)
+$(if [ "$HAS_GUI" = true ]; then echo "./run.sh"; else echo "./bin/zilium-super-compactor RMX3500_11_F.29/"; fi)
+
+# Or use CLI directly
+./bin/zilium-super-compactor RMX3500_11_F.29/
+
+# Output will be in RMX3500_11_F.29/super_new.img
+
+SYSTEM REQUIREMENTS
+-------------------
+• Linux (Ubuntu 20.04+, Arch, Fedora, etc.)
+• 64-bit x86_64 architecture
+$(if [ "$HAS_GUI" = true ]; then echo "• Qt6 libraries (for GUI)
+  Ubuntu/Debian: sudo apt install qt6-base-dev
+  Arch Linux: sudo pacman -S qt6-base
+  Fedora: sudo dnf install qt6-qtbase"; fi)
+• Sufficient disk space (2-3x super partition size)
+
+WORKFLOW
+--------
+1. Extract your device's ROM/OTA package
+2. Run Zilium on the extracted folder
+3. Wait for processing to complete
+4. Find output at: <rom-folder>/super_new.img
+5. Flash using fastboot or recovery tools
+
+TROUBLESHOOTING
+---------------
+Q: Permission denied when running scripts
+A: Make them executable: chmod +x run.sh bin/*
+
+Q: GUI won't start
+A: Install Qt6 libraries (see System Requirements)
+   Or use CLI mode: ./bin/zilium-super-compactor <folder>
+
+Q: "lpmake not found" error
+A: Ensure you run from package directory, not bin/
+   The tool auto-detects bundled lpmake
+
+Q: Output image verification failed
+A: Check that all partition .img files exist
+   Verify sufficient disk space available
+
+$(if [ "$HAS_GUI" = true ]; then echo "Q: GUI shows 'Loading license...' forever
+A: This is a known visual bug, doesn't affect functionality
+   Click outside the dialog to dismiss it
+"; fi)
+SUPPORT & LINKS
+---------------
+• GitHub:   https://github.com/Badmaneers/zilium
+• Issues:   https://github.com/Badmaneers/zilium/issues
+• Telegram: @DumbDragon
+
+LICENSE
+-------
+MIT License - See LICENSE file for full text
+Copyright (c) 2025 Badmaneers
+
+BUILD INFORMATION
+-----------------
+Version:      ${VERSION}
+Build Mode:   ${BUILD_MODE}
+Build Date:   $(date '+%Y-%m-%d %H:%M:%S')
+System:       $(uname -s) $(uname -m)
+Compiler:     $(g++ --version | head -n1 2>/dev/null || echo "Unknown")
+$(if [ "$HAS_GUI" = true ]; then echo "GUI:          Qt6 (Included)"; fi)
+
+CREDITS
+-------
+• LP Tools:      Android Open Source Project (AOSP)
+• nlohmann/json: Niels Lohmann
+• Qt Framework:  The Qt Company Ltd.
+• Developer:     Badmaneers
+
+═══════════════════════════════════════════════════════════
+Thank you for using Zilium Super Compactor!
+═══════════════════════════════════════════════════════════
 README_EOF
+    print_success "README.txt created"
+    
+    # Make all scripts executable
+    print_step "Setting executable permissions..."
+    chmod +x "dist/${RELEASE_DIR}/bin/"* 2>/dev/null || true
+    if [ -f "dist/${RELEASE_DIR}/run.sh" ]; then
+        chmod +x "dist/${RELEASE_DIR}/run.sh"
+    fi
+    print_success "Permissions set"
     
     # Create tarball
     print_step "Creating tarball..."
@@ -184,11 +372,50 @@ README_EOF
     md5sum "${PACKAGE_NAME}" > "${PACKAGE_NAME}.md5"
     cd ..
     
+    # Create distribution info file
+    print_step "Creating distribution info..."
+    cat > "dist/${RELEASE_DIR}.info" << INFO_EOF
+Package: zilium-super-compactor
+Version: ${VERSION}
+Architecture: $(uname -m)
+Platform: $(uname -s)
+Build-Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+Build-Mode: ${BUILD_MODE}
+GUI-Included: ${HAS_GUI}
+Package-File: ${PACKAGE_NAME}
+Package-Size: $(du -h "dist/${PACKAGE_NAME}" | cut -f1)
+SHA256: $(cat "dist/${PACKAGE_NAME}.sha256" | cut -d' ' -f1)
+MD5: $(cat "dist/${PACKAGE_NAME}.md5" | cut -d' ' -f1)
+INFO_EOF
+    
     print_success "Release package created: dist/${PACKAGE_NAME}"
     print_info "Package size: $(du -h dist/${PACKAGE_NAME} | cut -f1)"
     echo ""
+    echo -e "${CYAN}Package Contents:${NC}"
+    echo "  • CLI tool: zilium-super-compactor"
+    echo "  • LP tools: lpmake, lpunpack, lpdump"
+    if [ "$HAS_GUI" = true ]; then
+        echo "  • GUI application: zilium-gui"
+        echo "  • Quick launcher: run.sh"
+    fi
+    echo "  • Documentation: README.txt"
+    echo "  • License: LICENSE"
+    echo ""
     echo -e "${CYAN}Checksums:${NC}"
     cat "dist/${PACKAGE_NAME}.sha256"
+    echo ""
+    if [ "$HAS_GUI" = true ]; then
+        echo -e "${GREEN}To run after extraction:${NC}"
+        echo "  tar -xzf ${PACKAGE_NAME}"
+        echo "  cd ${RELEASE_DIR}"
+        echo "  ./run.sh"
+    else
+        echo -e "${GREEN}To run after extraction:${NC}"
+        echo "  tar -xzf ${PACKAGE_NAME}"
+        echo "  cd ${RELEASE_DIR}"
+        echo "  ./bin/zilium-super-compactor <rom-folder>"
+    fi
+    echo ""
 }
 
 # Main setup function
@@ -314,17 +541,26 @@ main() {
     print_step "Configuring CMake (${BUILD_MODE} mode)..."
     cd build
     
+    # Determine GUI build flag for CMake
+    if [ "$BUILD_GUI" = true ]; then
+        CMAKE_GUI_FLAG="-DBUILD_GUI=ON"
+        print_info "GUI build enabled"
+    else
+        CMAKE_GUI_FLAG="-DBUILD_GUI=OFF"
+    fi
+    
     if [ "$BUILD_MODE" = "Release" ]; then
         print_info "Enabling compiler optimizations (-O3, -march=native)"
         if ! cmake -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_CXX_FLAGS_RELEASE="-O3 -march=native -DNDEBUG" \
+              ${CMAKE_GUI_FLAG} \
               .. ; then
             print_error "CMake configuration failed"
             cd ..
             exit 1
         fi
     else
-        if ! cmake -DCMAKE_BUILD_TYPE=Debug .. ; then
+        if ! cmake -DCMAKE_BUILD_TYPE=Debug ${CMAKE_GUI_FLAG} .. ; then
             print_error "CMake configuration failed"
             cd ..
             exit 1
@@ -335,16 +571,18 @@ main() {
     print_step "Compiling zilium_super_compactor..."
     CORES=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
     print_info "Using ${CORES} CPU cores"
-    if ! make -j$CORES ; then
+    if ! make -j$CORES 2>&1 | tee make.log ; then
         print_error "Compilation failed"
+        echo ""
+        print_info "Check make.log for details"
         cd ..
         exit 1
     fi
-    print_success "zilium-super-compactor compiled"
+    print_success "Compilation complete"
     
     cd ..
     
-    # Verify binary
+    # Verify CLI binary
     if [ -f "build/zilium-super-compactor" ]; then
         BINARY_SIZE=$(du -h build/zilium-super-compactor | cut -f1)
         print_success "zilium-super-compactor binary created (${BINARY_SIZE})"
@@ -353,12 +591,32 @@ main() {
         exit 1
     fi
     
+    # Verify GUI binary if requested
+    if [ "$BUILD_GUI" = true ]; then
+        if [ -f "build/gui/zilium-gui" ]; then
+            GUI_SIZE=$(du -h build/gui/zilium-gui | cut -f1)
+            print_success "zilium-gui binary created (${GUI_SIZE})"
+        else
+            print_error "Failed to build zilium-gui"
+            print_info "Qt6 might not be installed or there was a compilation error"
+            print_info "Install Qt6: sudo apt install qt6-base-dev qt6-declarative-dev"
+            print_info "Check build/make.log for details"
+        fi
+    fi
+    
     # Strip binary in release mode
     if [ "$BUILD_MODE" = "Release" ]; then
         print_step "Stripping debug symbols for smaller binary..."
         strip build/zilium-super-compactor
         STRIPPED_SIZE=$(du -h build/zilium-super-compactor | cut -f1)
         print_success "Binary stripped (${STRIPPED_SIZE})"
+        
+        if [ "$BUILD_GUI" = true ]; then
+            if [ -f "build/gui/zilium-gui" ]; then
+                strip build/gui/zilium-gui 2>/dev/null || true
+                print_success "GUI binary stripped"
+            fi
+        fi
     fi
     
     # Create release package if requested
@@ -377,9 +635,24 @@ main() {
     echo "  Mode:     ${BUILD_MODE}"
     echo "  Binary:   $(pwd)/build/zilium-super-compactor"
     echo "  Size:     $(du -h build/zilium-super-compactor | cut -f1)"
+    
+    if [ "$BUILD_GUI" = true ]; then
+        if [ -f "build/gui/zilium-gui" ]; then
+            echo "  GUI:      $(pwd)/build/gui/zilium-gui"
+            echo "  Size:     $(du -h build/gui/zilium-gui | cut -f1)"
+        fi
+    fi
+    
     echo ""
-    echo -e "${YELLOW}Usage:${NC}"
-    echo "  ./build/zilium-super-compactor <path-to-rom-folder>"
+    echo -e "${YELLOW}Quick Start:${NC}"
+    
+    if [ "$BUILD_GUI" = true ] && [ -f "build/gui/zilium-gui" ]; then
+        echo "  GUI: ./build/gui/zilium-gui"
+        echo "  CLI: ./build/zilium-super-compactor <path-to-rom-folder>"
+    else
+        echo "  ./build/zilium-super-compactor <path-to-rom-folder>"
+    fi
+    
     echo ""
     echo -e "${YELLOW}Example:${NC}"
     echo "  ./build/zilium-super-compactor ~/Downloads/ColorOS_ROM/"
@@ -395,8 +668,22 @@ main() {
     fi
     
     if [ "$CREATE_RELEASE" = false ]; then
-        echo -e "${CYAN}Additional Options:${NC}"
-        echo "  Create release package:  $0 --package"
+        echo -e "${CYAN}Create Distribution Package:${NC}"
+        if [ "$BUILD_GUI" = true ]; then
+            echo "  $0 --release --gui --package"
+        else
+            echo "  $0 --release --package"
+        fi
+        echo ""
+        echo "  This will create:"
+        echo "  • Optimized binaries"
+        echo "  • run.sh launcher script (if GUI)"
+        echo "  • README.txt with documentation"
+        echo "  • Compressed .tar.gz archive"
+        echo "  • SHA256 and MD5 checksums"
+    else
+        echo -e "${GREEN}Distribution package created!${NC}"
+        echo "  Ready to ship and deploy"
     fi
     
     echo ""

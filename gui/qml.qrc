@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/ZiliumGUI">
+        <file>qml/main.qml</file>
+        <file>qml/PartitionDelegate.qml</file>
+        <file>qml/ThemeManager.qml</file>
+        <file>qml/GuideDialog.qml</file>
+        <file>qml/LicenseWindow.qml</file>
+        <file>resources/zilium-logo.svg</file>
+        <file>resources/telegram-icon.svg</file>
+        <file>resources/github-icon.svg</file>
+        <file>resources/icons/light-bulb.svg</file>
+        <file>resources/icons/folder.svg</file>
+        <file>resources/icons/clear.svg</file>
+        <file>resources/icons/play.svg</file>
+        <file>resources/icons/minimize.svg</file>
+        <file>resources/icons/maximize.svg</file>
+        <file>resources/icons/close.svg</file>
+        <file alias="LICENSE">../LICENSE</file>
+    </qresource>
+</RCC>

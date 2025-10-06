@@ -7,10 +7,105 @@
 #include <sstream>
 #include <unistd.h>
 #include <limits.h>
+#include <atomic>
+#include <ctime>
 #include "../external/json/include/nlohmann/json.hpp" // You'll need nlohmann/json library
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
+
+// Progress callback system for GUI integration
+class ProgressCallback {
+public:
+    virtual void onProgress(int percent, const std::string& message) = 0;
+    virtual void onLog(const std::string& message) = 0;
+    virtual ~ProgressCallback() = default;
+};
+
+// Global state for GUI integration
+static ProgressCallback* g_progress_callback = nullptr;
+static std::atomic<bool> g_cancel_requested{false};
+
+// Progress reporting functions
+void set_progress_callback(ProgressCallback* callback) {
+    g_progress_callback = callback;
+}
+
+void request_cancel() {
+    g_cancel_requested = true;
+}
+
+bool is_cancelled() {
+    return g_cancel_requested;
+}
+
+void reset_cancel() {
+    g_cancel_requested = false;
+}
+
+void report_progress(int percent, const std::string& message) {
+    if (g_progress_callback) {
+        g_progress_callback->onProgress(percent, message);
+    } else {
+        std::cout << "[" << percent << "%] " << message << std::endl;
+    }
+}
+
+void log_message(const std::string& message) {
+    if (g_progress_callback) {
+        g_progress_callback->onLog(message);
+    } else {
+        std::cout << message << std::endl;
+    }
+}
+
+// Error codes for structured error handling
+enum class ErrorCode {
+    SUCCESS = 0,
+    INVALID_PATH = 1,
+    JSON_NOT_FOUND = 2,
+    JSON_PARSE_ERROR = 3,
+    MISSING_PARTITIONS = 4,
+    SIZE_MISMATCH = 5,
+    LPMAKE_FAILED = 6,
+    CANCELLED = 7,
+    LPDUMP_NOT_FOUND = 8,
+    VERIFICATION_FAILED = 9
+};
+
+struct BuildResult {
+    ErrorCode error_code;
+    std::string error_message;
+    std::string output_path;
+    uint64_t output_size;
+    int build_time_seconds;
+};
+
+struct ValidationResult {
+    bool success;
+    std::vector<std::string> errors;
+    std::vector<std::string> warnings;
+};
+
+struct BuildPlan {
+    std::string lpmake_command;
+    std::vector<std::string> required_files;
+    uint64_t estimated_output_size;
+    std::string output_path;
+};
+
+struct BuildEstimate {
+    uint64_t total_bytes_to_process;
+    int estimated_seconds;
+    std::string estimated_time_str;
+};
+
+struct SizeRecommendation {
+    uint64_t current_size;
+    uint64_t actual_file_size;
+    uint64_t recommended_size;
+    bool needs_resize;
+};
 
 // Get the directory where the executable is located
 std::string get_executable_dir() {
@@ -37,6 +132,18 @@ std::string find_lpmake() {
     
     // Fall back to system PATH
     return "lpmake";
+}
+
+// Find lpdump binary - check bundled first, then system PATH
+std::string find_lpdump() {
+    std::string exe_dir = get_executable_dir();
+    if (!exe_dir.empty()) {
+        fs::path bundled = fs::path(exe_dir) / "lpdump";
+        if (fs::exists(bundled)) {
+            return bundled.string();
+        }
+    }
+    return "lpdump";
 }
 
 struct Partition {
@@ -72,6 +179,9 @@ struct SuperConfig {
     uint32_t alignment_offset;
     bool virtual_ab;
 };
+
+// Forward declarations
+std::string build_lpmake_command(const SuperConfig& config, const std::string& output_path);
 
 void print_banner() {
     std::cout << "\n";
@@ -234,35 +344,288 @@ bool parse_super_config(const std::string& json_path, const std::string& base_pa
         config.metadata_path = j["super_meta"]["path"].get<std::string>();
     }
     
-    std::cout << "\nConfiguration loaded successfully:" << std::endl;
-    std::cout << "  - Block device size: " << config.block_device.size << " bytes" << std::endl;
-    std::cout << "  - Block size: " << config.block_device.block_size << " bytes" << std::endl;
-    std::cout << "  - Alignment: " << config.block_device.alignment << " bytes" << std::endl;
-    std::cout << "  - Metadata size: " << config.metadata_size << " bytes" << std::endl;
-    std::cout << "  - Metadata slots: " << config.metadata_slots << std::endl;
-    std::cout << "  - Super name: " << config.super_name << std::endl;
-    std::cout << "  - Groups: " << config.groups.size() << std::endl;
-    std::cout << "  - Partitions: " << config.partitions.size() << std::endl;
+    log_message("\nConfiguration loaded successfully:");
+    log_message("  - Block device size: " + std::to_string(config.block_device.size) + " bytes");
+    log_message("  - Block size: " + std::to_string(config.block_device.block_size) + " bytes");
+    log_message("  - Alignment: " + std::to_string(config.block_device.alignment) + " bytes");
+    log_message("  - Metadata size: " + std::to_string(config.metadata_size) + " bytes");
+    log_message("  - Metadata slots: " + std::to_string(config.metadata_slots));
+    log_message("  - Super name: " + config.super_name);
+    log_message("  - Groups: " + std::to_string(config.groups.size()));
+    log_message("  - Partitions: " + std::to_string(config.partitions.size()));
     
     return true;
 }
 
 bool verify_partition_files(const SuperConfig& config) {
-    std::cout << "\nVerifying partition files..." << std::endl;
+    log_message("\nVerifying partition files...");
     bool all_exist = true;
     
-    for (const auto& partition : config.partitions) {
-        std::string full_path = config.base_path + "/" + partition.path;
+    for (size_t i = 0; i < config.partitions.size(); i++) {
+        if (is_cancelled()) {
+            return false;
+        }
+        
+        const auto& partition = config.partitions[i];
+        report_progress((i * 100) / config.partitions.size(), 
+                       "Verifying " + partition.name);
+        
+        // Skip partitions without a path (slot B placeholders for A/B devices)
+        if (partition.path.empty()) {
+            log_message("  ⚬ " + partition.name + ": Slot placeholder (no image file)");
+            continue;
+        }
+        
+        // Handle both relative and absolute paths
+        std::string full_path;
+        if (partition.path[0] == '/') {
+            full_path = partition.path;
+        } else {
+            full_path = config.base_path + "/" + partition.path;
+        }
+        
         if (!fs::exists(full_path)) {
-            std::cerr << "  ERROR: Partition file not found: " << full_path << std::endl;
+            std::cerr << "  ✗ " << partition.name << ": MISSING - " << full_path << std::endl;
             all_exist = false;
         } else {
             auto file_size = fs::file_size(full_path);
-            std::cout << "  ✓ " << partition.name << " (" << file_size << " bytes)" << std::endl;
+            std::cout << "  ✓ " << partition.name << ": " << (file_size / 1024 / 1024) << " MB" << std::endl;
         }
     }
     
     return all_exist;
+}
+
+// Validate configuration before building
+ValidationResult validate_configuration(const SuperConfig& config) {
+    ValidationResult result;
+    result.success = true;
+    
+    log_message("\nValidating configuration...");
+    
+    // Check partition files exist and sizes
+    for (const auto& partition : config.partitions) {
+        // Handle both relative and absolute paths
+        std::string full_path;
+        if (partition.path.empty()) {
+            result.errors.push_back("Empty path for partition: " + partition.name);
+            result.success = false;
+            continue;
+        }
+        
+        if (partition.path[0] == '/') {
+            // Absolute path
+            full_path = partition.path;
+        } else {
+            // Relative path
+            full_path = config.base_path + "/" + partition.path;
+        }
+        
+        if (!fs::exists(full_path)) {
+            result.errors.push_back("Missing partition file: " + partition.name);
+            result.success = false;
+        } else {
+            auto file_size = fs::file_size(full_path);
+            if (file_size > partition.size) {
+                result.warnings.push_back(partition.name + " file size (" + 
+                    std::to_string(file_size) + ") exceeds declared size (" + 
+                    std::to_string(partition.size) + ")");
+            }
+            if (file_size == 0) {
+                result.warnings.push_back(partition.name + " is empty (0 bytes)");
+            }
+        }
+    }
+    
+    // Validate total size doesn't exceed device size
+    uint64_t total_size = 0;
+    for (const auto& partition : config.partitions) {
+        total_size += partition.size;
+    }
+    if (total_size > config.block_device.size) {
+        result.errors.push_back("Total partition size (" + std::to_string(total_size) + 
+            ") exceeds device size (" + std::to_string(config.block_device.size) + ")");
+        result.success = false;
+    }
+    
+    // Check for duplicate partition names
+    std::vector<std::string> names;
+    for (const auto& partition : config.partitions) {
+        if (std::find(names.begin(), names.end(), partition.name) != names.end()) {
+            result.errors.push_back("Duplicate partition name: " + partition.name);
+            result.success = false;
+        }
+        names.push_back(partition.name);
+    }
+    
+    // Display results
+    if (!result.errors.empty()) {
+        log_message("\nValidation Errors:");
+        for (const auto& error : result.errors) {
+            log_message("  ✗ " + error);
+        }
+    }
+    
+    if (!result.warnings.empty()) {
+        log_message("\nValidation Warnings:");
+        for (const auto& warning : result.warnings) {
+            log_message("  ⚠ " + warning);
+        }
+    }
+    
+    if (result.success) {
+        log_message("✓ Configuration validation passed");
+    }
+    
+    return result;
+}
+
+// Calculate optimal partition size
+SizeRecommendation calculate_optimal_size(const Partition& partition, 
+                                          const std::string& base_path,
+                                          uint32_t alignment) {
+    SizeRecommendation rec;
+    std::string full_path = base_path + "/" + partition.path;
+    
+    rec.current_size = partition.size;
+    rec.actual_file_size = fs::exists(full_path) ? fs::file_size(full_path) : 0;
+    
+    // Round up to alignment boundary
+    if (rec.actual_file_size > 0) {
+        rec.recommended_size = ((rec.actual_file_size + alignment - 1) / alignment) * alignment;
+    } else {
+        rec.recommended_size = alignment;
+    }
+    
+    rec.needs_resize = (rec.recommended_size != rec.current_size);
+    
+    return rec;
+}
+
+// Create build plan (dry run)
+BuildPlan create_build_plan(const SuperConfig& config, const std::string& output_path) {
+    BuildPlan plan;
+    plan.lpmake_command = build_lpmake_command(config, output_path);
+    plan.output_path = output_path;
+    plan.estimated_output_size = config.block_device.size;
+    
+    for (const auto& partition : config.partitions) {
+        plan.required_files.push_back(config.base_path + "/" + partition.path);
+    }
+    
+    return plan;
+}
+
+// Estimate build time
+BuildEstimate estimate_build_time(const SuperConfig& config) {
+    BuildEstimate estimate;
+    estimate.total_bytes_to_process = 0;
+    
+    for (const auto& partition : config.partitions) {
+        std::string full_path = config.base_path + "/" + partition.path;
+        if (fs::exists(full_path)) {
+            estimate.total_bytes_to_process += fs::file_size(full_path);
+        }
+    }
+    
+    // Rough estimate: 100 MB/s processing speed
+    estimate.estimated_seconds = estimate.total_bytes_to_process / (100 * 1024 * 1024);
+    if (estimate.estimated_seconds < 1) estimate.estimated_seconds = 1;
+    
+    int minutes = estimate.estimated_seconds / 60;
+    int seconds = estimate.estimated_seconds % 60;
+    estimate.estimated_time_str = std::to_string(minutes) + "m " + 
+                                   std::to_string(seconds) + "s";
+    
+    return estimate;
+}
+
+// Export modified configuration to JSON
+bool export_config_json(const SuperConfig& config, const std::string& output_path) {
+    json j;
+    
+    try {
+        // Rebuild JSON from config
+        j["nv_id"] = config.nv_id;
+        
+        j["lpmake"]["metadata_size"] = std::to_string(config.metadata_size);
+        j["lpmake"]["metadata_slots"] = std::to_string(config.metadata_slots);
+        j["lpmake"]["super_name"] = config.super_name;
+        j["lpmake"]["alignment_offset"] = std::to_string(config.alignment_offset);
+        j["lpmake"]["virtual_ab"] = config.virtual_ab;
+        
+        // Block device
+        j["block_devices"][0] = {
+            {"name", config.block_device.name},
+            {"size", std::to_string(config.block_device.size)},
+            {"block_size", std::to_string(config.block_device.block_size)},
+            {"alignment", std::to_string(config.block_device.alignment)}
+        };
+        
+        // Groups
+        j["groups"] = json::array();
+        for (const auto& group : config.groups) {
+            j["groups"].push_back({
+                {"name", group.name},
+                {"maximum_size", std::to_string(group.maximum_size)}
+            });
+        }
+        
+        // Partitions
+        j["partitions"] = json::array();
+        for (const auto& partition : config.partitions) {
+            j["partitions"].push_back({
+                {"name", partition.name},
+                {"path", partition.path},
+                {"size", std::to_string(partition.size)},
+                {"group_name", partition.group_name},
+                {"is_dynamic", partition.is_dynamic}
+            });
+        }
+        
+        // Metadata path
+        if (!config.metadata_path.empty()) {
+            j["super_meta"]["path"] = config.metadata_path;
+        }
+        
+        std::ofstream file(output_path);
+        if (!file.is_open()) {
+            log_message("ERROR: Cannot write to " + output_path);
+            return false;
+        }
+        
+        file << j.dump(2);
+        log_message("Configuration exported to: " + output_path);
+        return true;
+        
+    } catch (const std::exception& e) {
+        log_message("ERROR: Failed to export configuration: " + std::string(e.what()));
+        return false;
+    }
+}
+
+// Verify the built super image using lpdump
+bool verify_super_image(const std::string& super_img_path) {
+    if (!fs::exists(super_img_path)) {
+        log_message("ERROR: Super image not found: " + super_img_path);
+        return false;
+    }
+    
+    log_message("\nVerifying super image with lpdump...");
+    
+    std::string lpdump_path = find_lpdump();
+    std::string lpdump_cmd = lpdump_path + " " + super_img_path + " > /tmp/zilium_lpdump.log 2>&1";
+    
+    int result = system(lpdump_cmd.c_str());
+    
+    if (result == 0) {
+        log_message("✓ Super image verification passed");
+        return true;
+    } else {
+        log_message("✗ Super image verification failed");
+        log_message("  Check /tmp/zilium_lpdump.log for details");
+        return false;
+    }
 }
 
 
@@ -313,7 +676,27 @@ std::string build_lpmake_command(const SuperConfig& config, const std::string& o
     
     // Add partitions with correct attributes
     for (const auto& partition : config.partitions) {
-        std::string full_path = config.base_path + "/" + partition.path;
+        // Skip partitions without a path (slot B placeholders for A/B devices)
+        if (partition.path.empty()) {
+            // For empty slot partitions, only add partition definition without image
+            log_message("  ⚬ Adding placeholder partition: " + partition.name + " (slot B)");
+            cmd << " --partition=" << partition.name << ":"
+                << (partition.is_dynamic ? "readonly:" : "none:")
+                << "0:"  // Size 0 for placeholder partitions
+                << partition.group_name;
+            continue;
+        }
+        
+        // Handle both relative and absolute paths
+        std::string full_path;
+        // Check if path is absolute (starts with /)
+        if (partition.path[0] == '/') {
+            // Absolute path - use as-is
+            full_path = partition.path;
+        } else {
+            // Relative path - prepend base_path
+            full_path = config.base_path + "/" + partition.path;
+        }
         
         // Partition definition: name:attributes:size:group
         cmd << " --partition=" << partition.name << ":"
@@ -321,8 +704,12 @@ std::string build_lpmake_command(const SuperConfig& config, const std::string& o
             << partition.size << ":"
             << partition.group_name;
         
-        // Image file for this partition
-        cmd << " --image=" << partition.name << "=" << full_path;
+        // Image file for this partition (only if file exists)
+        if (fs::exists(full_path)) {
+            cmd << " --image=" << partition.name << "=" << full_path;
+        } else {
+            log_message("WARNING: Image file not found for " + partition.name + ": " + full_path);
+        }
     }
     
     // Output file - use raw format (not sparse) for direct flashing
@@ -335,9 +722,17 @@ int main(int argc, char* argv[]) {
     print_banner();
     
     std::string export_path;
+    std::string specific_json;  // Optional: specific JSON file to use
+    std::string output_dir;     // Optional: custom output directory
     
     if (argc > 1) {
         export_path = argv[1];
+        if (argc > 2) {
+            specific_json = argv[2];  // Second argument: specific JSON filename
+        }
+        if (argc > 3) {
+            output_dir = argv[3];     // Third argument: output directory
+        }
     } else {
         std::cout << "Enter the path to your export ROM folder: ";
         std::getline(std::cin, export_path);
@@ -353,11 +748,49 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    // If output directory specified, validate it
+    if (!output_dir.empty()) {
+        while (!output_dir.empty() && (output_dir.back() == '/' || output_dir.back() == '\\')) {
+            output_dir.pop_back();
+        }
+        if (!fs::exists(output_dir)) {
+            std::cerr << "ERROR: Output folder not found: " << output_dir << std::endl;
+            return 1;
+        }
+    }
+    
     std::string meta_path = export_path + "/META";
     
     // Find and select JSON file
     auto json_files = find_json_files(meta_path);
-    std::string selected_json = select_json_file(json_files);
+    std::string selected_json;
+    
+    // If a specific JSON file was provided, use it
+    if (!specific_json.empty()) {
+        // Check if the provided filename exists in the META folder
+        bool found = false;
+        for (const auto& file : json_files) {
+            if (file == specific_json) {
+                found = true;
+                selected_json = specific_json;
+                break;
+            }
+        }
+        
+        if (!found) {
+            std::cerr << "ERROR: Specified JSON file not found: " << specific_json << std::endl;
+            std::cerr << "Available files:" << std::endl;
+            for (const auto& file : json_files) {
+                std::cerr << "  - " << file << std::endl;
+            }
+            return 1;
+        }
+        
+        std::cout << "Using specified configuration: " << selected_json << std::endl;
+    } else {
+        // Interactive selection if no specific JSON provided
+        selected_json = select_json_file(json_files);
+    }
     
     if (selected_json.empty()) {
         return 1;
@@ -372,30 +805,78 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    // Validate configuration
+    report_progress(10, "Validating configuration");
+    ValidationResult validation = validate_configuration(config);
+    if (!validation.success) {
+        std::cerr << "\nERROR: Configuration validation failed!" << std::endl;
+        return static_cast<int>(ErrorCode::MISSING_PARTITIONS);
+    }
+    
+    // Show build estimate
+    BuildEstimate estimate = estimate_build_time(config);
+    log_message("\nBuild Estimate:");
+    log_message("  - Total data to process: " + 
+                std::to_string(estimate.total_bytes_to_process / 1024 / 1024) + " MB");
+    log_message("  - Estimated time: " + estimate.estimated_time_str);
+    
     // Verify partition files
+    report_progress(20, "Verifying partition files");
     if (!verify_partition_files(config)) {
         std::cerr << "\nERROR: Some partition files are missing!" << std::endl;
-        return 1;
+        return static_cast<int>(ErrorCode::MISSING_PARTITIONS);
+    }
+    
+    if (is_cancelled()) {
+        log_message("\nOperation cancelled by user");
+        return static_cast<int>(ErrorCode::CANCELLED);
     }
     
     // Build super.img
-    std::string output_path = export_path + "/super.img";
-    std::cout << "\nBuilding super.img..." << std::endl;
-    std::cout << "Output: " << output_path << std::endl;
+    // Use custom output directory if provided, otherwise use ROM directory
+    std::string output_path = output_dir.empty() ? 
+        (export_path + "/super.img") : 
+        (output_dir + "/super.img");
+    log_message("\nBuilding super.img...");
+    log_message("Output: " + output_path);
     
     std::string lpmake_cmd = build_lpmake_command(config, output_path);
     
-    std::cout << "\nExecuting lpmake command..." << std::endl;
-    std::cout << "Command: " << lpmake_cmd << std::endl;
+    // Show dry run information
+    BuildPlan plan = create_build_plan(config, output_path);
+    log_message("\nBuild Plan:");
+    log_message("  - Output: " + plan.output_path);
+    log_message("  - Required files: " + std::to_string(plan.required_files.size()));
+    log_message("  - Estimated output size: " + 
+                std::to_string(plan.estimated_output_size / 1024 / 1024) + " MB");
     
+    log_message("\nExecuting lpmake command...");
+    log_message("Command: " + lpmake_cmd);
+    
+    report_progress(50, "Building super image");
+    
+    auto start_time = std::time(nullptr);
     int result = system(lpmake_cmd.c_str());
+    auto end_time = std::time(nullptr);
+    int build_time = end_time - start_time;
+    
+    report_progress(90, "Build complete, verifying");
     
     if (result == 0) {
-        std::cout << "\n✓ SUCCESS! Super image created at: " << output_path << std::endl;
+        log_message("\n✓ SUCCESS! Super image created at: " + output_path);
         
         if (fs::exists(output_path)) {
             auto output_size = fs::file_size(output_path);
-            std::cout << "  Size: " << output_size << " bytes (" << (output_size / 1024 / 1024) << " MB)" << std::endl;
+            log_message("  Size: " + std::to_string(output_size) + " bytes (" + 
+                       std::to_string(output_size / 1024 / 1024) + " MB)");
+            log_message("  Build time: " + std::to_string(build_time) + " seconds");
+        }
+        
+        // Verify the output image
+        if (verify_super_image(output_path)) {
+            report_progress(100, "Build and verification complete");
+        } else {
+            log_message("Warning: Image verification failed, but image was created");
         }
         
         // Display important vbmeta information
@@ -443,8 +924,9 @@ int main(int argc, char* argv[]) {
     } else {
         std::cerr << "\n✗ ERROR: Failed to create super image!" << std::endl;
         std::cerr << "  Return code: " << result << std::endl;
-        return 1;
+        return static_cast<int>(ErrorCode::LPMAKE_FAILED);
     }
     
-    return 0;
+    reset_cancel();
+    return static_cast<int>(ErrorCode::SUCCESS);
 }

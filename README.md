@@ -1,346 +1,341 @@
-# Zilium Super Compactor
+# 🚀 Zilium Super Compactor
 
-A powerful tool for rebuilding and compacting super partition images for Realme/OPPO/OnePlus devices with **stock vbmeta compatibility**.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/Badmaneers/zilium/releases)
+[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)](https://www.linux.org/)
+[![Qt](https://img.shields.io/badge/Qt-6.2+-green)](https://www.qt.io/)
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Platform](https://img.shields.io/badge/platform-Linux-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
-[![Version](https://img.shields.io/badge/version-1.0.0-orange)]()
+A powerful tool for rebuilding and compacting super partition images for Realme/OPPO/OnePlus devices with stock vbmeta compatibility.
 
-## 🌟 Features
+![Zilium Banner](docs/images/banner.png)
 
-- ✅ **Stock VBMeta Compatible** - Rebuilds super.img with exact metadata structure
-- 🔄 **A/B & Non-A/B Support** - Auto-detects device partition scheme
-- 📦 **Self-Contained** - Bundles all required tools (lpmake, lpunpack, lpdump)
-- ⚡ **Fast Builds** - Intelligent caching skips unnecessary recompilation
-- 🎯 **JSON Configuration** - Easy-to-use configuration format
-- 🛠️ **Professional Build System** - Release mode with full optimizations
+## ✨ Features
 
-## 📋 Table of Contents
+### 🔧 Core Functionality
+- **Smart Size Optimization** - Automatically reduces super partition size to minimum required
+- **Stock VBMeta Compatible** - Works with unmodified stock VBMeta (no disable verification needed)
+- **A/B and Non-A/B Support** - Compatible with both slot types
+- **Multi-Partition Support** - Handles system, vendor, product, odm, and more
+- **Fast Builds** - Optimized compilation process with progress tracking
+- **Self-Contained** - Includes all necessary AOSP tools (lpmake, lpunpack, lpdump)
 
-- [Quick Start](#-quick-start)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Building from Source](#-building-from-source)
-- [Configuration](#-configuration)
-- [Troubleshooting](#-troubleshooting)
-- [Technical Details](#-technical-details)
-- [Contributing](#-contributing)
-- [License](#-license)
+### 🎨 Graphical User Interface (GUI)
+- **Modern Qt6 Interface** - Beautiful, native-looking application
+- **Dark/Light Themes** - Toggle between themes for comfort
+- **Real-time Progress** - Live console output and progress tracking
+- **Partition Management** - Enable/disable partitions visually
+- **Configuration Validation** - Automatic error checking and warnings
+- **Interactive Guide** - Built-in user guide and documentation
 
-## 🚀 Quick Start
+### 🖥️ Command Line Interface (CLI)
+- **Scriptable** - Perfect for automation and batch processing
+- **Detailed Logging** - Verbose output for debugging
+- **Flexible Options** - Customize behavior with command-line flags
+- **Error Handling** - Clear error messages and validation
 
-```bash
-# Clone the repository
-git clone https://github.com/Badmaneers/zilium.git
-cd zilium
+## 📸 Screenshots
 
-# Build the project
-./build.sh --release
+### GUI - Dark Theme
+![Dark Theme](docs/images/gui-dark.png)
 
-# Run the tool
-./build/zilium-super-compactor /path/to/rom-folder
+### GUI - Light Theme
+![Light Theme](docs/images/gui-light.png)
+
+### CLI Output
+```
+╔═══════════════════════════════════════════╗
+║   ZILIUM SUPER COMPACTOR v1.0.0          ║
+║   Building Super Partition...             ║
+╚═══════════════════════════════════════════╝
+
+📂 Loading configuration...
+✓ Configuration loaded: super_config.json
+✓ Device type: A/B
+✓ Block size: 4096 bytes
+✓ Super partition: super
+
+📊 Partition Summary:
+  • system_a: 2.8 GB
+  • vendor_a: 892 MB
+  • product_a: 1.2 GB
+  • odm_a: 124 MB
+
+🔧 Building super partition...
+[██████████████████████████████] 100%
+
+✓ Build completed successfully!
+✓ Output: output/super.img
+✓ Size: 4.9 GB (optimized from 6.0 GB)
+✓ Build time: 2m 34s
 ```
 
-## 📦 Installation
+## 🚀 Quick Start
 
 ### Prerequisites
 
 **Ubuntu/Debian:**
 ```bash
 sudo apt update
-sudo apt install build-essential cmake git zlib1g-dev
+sudo apt install build-essential cmake qt6-base-dev qt6-declarative-dev qml6-module-qtquick-controls
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S base-devel cmake git zlib
+sudo pacman -S base-devel cmake qt6-base qt6-declarative qt6-quickcontrols2
 ```
 
 **Fedora:**
 ```bash
-sudo dnf install gcc-c++ cmake git zlib-devel
+sudo dnf install gcc-c++ cmake qt6-qtbase-devel qt6-qtdeclarative-devel
 ```
 
-### Build Options
+### Installation
 
 ```bash
-# Quick debug build (for development)
+# Clone the repository
+git clone https://github.com/Badmaneers/zilium.git
+cd zilium
+
+# Build everything (CLI + GUI)
 ./build.sh
 
-# Optimized release build
-./build.sh --release
-
-# Clean build
-./build.sh --clean --release
-
-# Force rebuild LP tools
-./build.sh --lptools --release
-
-# Create distribution package
-./build.sh --package
+# Or build separately
+./build.sh --cli-only    # Build CLI only
+./build-gui.sh           # Build GUI only
 ```
 
-## 📖 Usage
+### Usage
 
-### Basic Usage
+#### GUI Mode (Recommended for Beginners)
 
 ```bash
-./build/zilium-super-compactor /path/to/rom-folder
+# Launch the GUI
+./build/gui/zilium-gui
 ```
 
-The tool will:
-1. Scan for JSON configuration files in `META/` folder
-2. Let you select the appropriate configuration
-3. Verify all partition images exist
-4. Automatically detect A/B vs non-A/B device type
-5. Rebuild super.img with correct metadata parameters
+**Steps:**
+1. Click "Browse..." to select your ROM's configuration JSON file
+2. Click "Browse..." to select output directory
+3. Review partitions in the "Partitions" tab
+4. Click "▶ Start" to begin compilation
+5. Monitor progress in the console log
+6. Done! Your optimized super.img is ready
 
-### Example Output
-
-```
-╔═══════════════════════════════════════════╗
-║   Super Image Rebuilder for Realme/OPPO  ║
-║          Single & A/B Slot Support        ║
-╚═══════════════════════════════════════════╝
-
-Configuration loaded successfully:
-  - Block device size: 10200547328 bytes
-  - Block size: 4096 bytes
-  - Metadata size: 65536 bytes
-  - Metadata slots: 2
-  - Groups: 2
-  - Partitions: 15
-
-Building super.img...
-✓ SUCCESS! Super image created at: /path/to/rom-folder/super.img
-```
-
-## 🔧 Building from Source
-
-### Clone with Submodule
+#### CLI Mode (For Advanced Users & Automation)
 
 ```bash
-git clone --recursive https://github.com/Badmaneers/zilium.git
-cd zilium
+# Basic usage
+./build/zilium-super-compactor -c /path/to/super_config.json -o /path/to/output/
+
+# With custom super size
+./build/zilium-super-compactor -c config.json -o output/ --super-size 6000000000
+
+# Verbose mode
+./build/zilium-super-compactor -c config.json -o output/ -v
+
+# Dry run (validate without building)
+./build/zilium-super-compactor -c config.json --dry-run
 ```
 
-Or if already cloned:
+## 📖 Documentation
 
+### For Users
+- [Installation Guide](docs/INSTALLATION.md) - Detailed installation instructions
+- [User Guide](docs/USER_GUIDE.md) - Complete usage guide with examples
+- [GUI Tutorial](docs/GUI_TUTORIAL.md) - Step-by-step GUI walkthrough
+- [CLI Reference](docs/CLI_REFERENCE.md) - Command-line options and examples
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [FAQ](docs/FAQ.md) - Frequently asked questions
+
+### For Developers
+- [Building from Source](docs/BUILDING.md) - Detailed build instructions
+- [Architecture](docs/ARCHITECTURE.md) - Code structure and design
+- [Contributing](docs/CONTRIBUTING.md) - How to contribute to the project
+- [API Documentation](docs/API.md) - Internal API reference
+
+## 🔧 How It Works
+
+### The Problem
+Modern Android devices use **dynamic partitions** stored in a **super partition**. When you extract a ROM, the super partition is often oversized, containing unused space. Flashing this directly wastes storage and can cause issues.
+
+### The Solution
+Zilium analyzes your partition images and rebuilds the super partition with:
+1. **Exact size calculation** - No wasted space
+2. **Proper metadata generation** - Compatible with stock bootloader
+3. **VBMeta compatibility** - Works with unmodified verification
+4. **Optimized layout** - Efficient partition arrangement
+
+## 🎯 Use Cases
+
+### 1. **Custom ROM Development**
 ```bash
-git submodule update --init --recursive
+# Build optimized super.img for your custom ROM
+./build/zilium-super-compactor -c ROM/META/super_config.json -o output/
 ```
 
-### Build System
-
-The project uses a sophisticated build system:
-
-| Command | Time | Description |
-|---------|------|-------------|
-| `./build.sh` | ~7s | Debug build, skips LP tools |
-| `./build.sh --release` | ~7s | Optimized build, skips LP tools |
-| `./build.sh --lptools` | ~2m | Rebuilds LP tools from source |
-| `./build.sh --package` | ~10s | Creates distribution tarball |
-
-### Build Flags
-
-- `-r, --release`: Enable O3 optimization + native CPU instructions
-- `-c, --clean`: Clean build directory before building
-- `-l, --lptools`: Force rebuild of bundled LP tools
-- `-p, --package`: Create release package with checksums
-- `-h, --help`: Show help message
-
-## ⚙️ Configuration
-
-### JSON Configuration Format
-
-The tool uses JSON configuration files located in `META/` folder:
-
-```json
-{
-  "block_devices": [{
-    "name": "super",
-    "size": "10200547328",
-    "block_size": "4096",
-    "alignment": "1048576"
-  }],
-  "groups": [{
-    "name": "main",
-    "maximum_size": "10196353024"
-  }],
-  "partitions": [{
-    "name": "system",
-    "path": "IMAGES/system.img",
-    "size": "802099200",
-    "group_name": "main",
-    "is_dynamic": true
-  }]
-}
-```
-
-### Device Type Detection
-
-**Non-A/B Devices:**
-- Groups: `main`
-- Metadata slots: 2
-- Example: Realme C-series, some A-series
-
-**A/B Devices:**
-- Groups: `main_a`, `main_b`
-- Metadata slots: 3
-- Example: Realme GT series, Find X series
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**1. "ERROR: Partition file not found"**
+### 2. **Stock ROM Modification**
 ```bash
-# Ensure all partition images exist in IMAGES/ folder
-ls -lh /path/to/rom/IMAGES/
+# Modify and repack stock ROM
+./build/zilium-super-compactor -c stock/config.json -o modified-rom/
 ```
 
-**2. "CMake configuration failed"**
+### 3. **GSI Image Building**
 ```bash
-# Install missing dependencies
-sudo apt install build-essential cmake git zlib1g-dev
+# Create Generic System Image with custom vendor
+./build/zilium-super-compactor -c gsi-config.json -o gsi-output/
 ```
 
-**3. "LP tools not found"**
+### 4. **OTA Package Creation**
 ```bash
-# Force rebuild LP tools
-./build.sh --lptools --release
+# Build super.img for OTA updates
+./build/zilium-super-compactor -c ota/config.json -o ota-package/
 ```
 
-**4. Device won't boot after flashing**
-```bash
-# This is normal! See VBMETA_COMPATIBILITY.md for solutions
-```
-
-### VBMeta Compatibility
-
-The rebuilt super.img will NOT boot with stock vbmeta. This is expected behavior because:
-- Stock vbmeta contains hash of original super metadata
-- Rebuilt super.img has different metadata hash
-- VBMeta verification will fail
-
-**Solutions:**
-
-1. **Disable verification (easiest):**
-```bash
-fastboot --disable-verity --disable-verification flash vbmeta vbmeta.img
-fastboot flash super super.img
-fastboot reboot
-```
-
-2. **Flash empty vbmeta:**
-```bash
-dd if=/dev/zero of=vbmeta_disabled.img bs=4096 count=1
-fastboot flash vbmeta vbmeta_disabled.img
-fastboot flash super super.img
-```
-
-3. **Use patched vbmeta:**
-- Use vbmeta from custom ROM
-- Create your own with `avbtool`
-
-See [VBMETA_COMPATIBILITY.md](VBMETA_COMPATIBILITY.md) for detailed explanation.
-
-## 🔬 Technical Details
-
-### Architecture
+## 🏗️ Project Structure
 
 ```
-zilium-super-compactor/
+zilium/
 ├── src/
-│   └── zilium-super-compactor.cpp    # Main tool (C++17)
-├── lpunpack_and_lpmake/        # Bundled AOSP tools
-│   ├── bin/
-│   │   ├── lpmake              # LP partition builder
-│   │   ├── lpunpack            # LP partition unpacker
-│   │   └── lpdump              # LP metadata dumper
-│   └── lib/                    # AOSP libraries
+│   ├── zilium_core.h              # Core functionality
+│   └── zilium_super_compactor.cpp # Main CLI application
+├── gui/
+│   ├── src/                       # GUI C++ sources
+│   │   ├── main.cpp
+│   │   ├── ziliumcontroller.*
+│   │   ├── partitionmodel.*
+│   │   └── superconfigmodel.*
+│   ├── qml/                       # QML UI files
+│   │   ├── main.qml
+│   │   ├── GuideDialog.qml
+│   │   ├── LicenseWindow.qml
+│   │   └── PartitionDelegate.qml
+│   └── resources/                 # Icons and assets
+├── lpunpack_and_lpmake/          # AOSP LP tools
+│   ├── bin/                       # Prebuilt binaries
+│   └── partition_tools/           # Tool sources
 ├── external/
-│   └── json/                   # nlohmann/json library
-├── build.sh                    # Build automation script
-└── CMakeLists.txt              # CMake configuration
+│   └── json/                      # nlohmann/json library
+├── docs/                          # Documentation
+├── build.sh                       # CLI build script
+├── build-gui.sh                   # GUI build script
+├── CMakeLists.txt                 # Main build configuration
+└── LICENSE                        # MIT License
 ```
 
-### Key Technologies
+## 🔍 System Requirements
 
-- **C++17** - Modern C++ with filesystem support
-- **CMake 3.10+** - Build system
-- **nlohmann/json** - JSON parsing
-- **AOSP liblp** - LP metadata handling
-- **Bash** - Build automation
+### Minimum Requirements
+- **OS**: Linux (Ubuntu 20.04+, Arch, Fedora 35+)
+- **RAM**: 4 GB
+- **Disk**: 10 GB free space (for building ROM images)
+- **Compiler**: GCC 9+ or Clang 10+
+- **CMake**: 3.20+
 
-### Optimization Flags
+### For GUI
+- **Qt**: 6.2 or higher
+- **Graphics**: OpenGL 2.0+ support
 
-Release builds use:
-- `-O3` - Maximum optimization level
-- `-march=native` - CPU-specific instructions
-- Strip debug symbols - Reduces binary size
-- Static linking - Self-contained binary
-
-## 📊 Performance
-
-| Operation | Time |
-|-----------|------|
-| Build (cached) | ~7 seconds |
-| Build (clean) | ~7 seconds |
-| Build LP tools | ~2 minutes |
-| Rebuild super.img | 10-30 seconds |
-| Package creation | ~3 seconds |
-
-**Binary Sizes:**
-- zilium-super-compactor: 136 KB
-- lpmake: 3.1 MB
-- lpunpack: 2.8 MB
-- lpdump: 5.9 MB
-- **Total package:** ~4.4 MB
+### Recommended
+- **CPU**: Quad-core or better
+- **RAM**: 8 GB or more
+- **Disk**: SSD for faster builds
+- **Display**: 1280x720 or higher resolution
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+We welcome contributions! Here's how you can help:
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+### Ways to Contribute
+- 🐛 Report bugs and issues
+- 💡 Suggest new features
+- 📖 Improve documentation
+- 🔧 Submit pull requests
+- ⭐ Star the repository
+- 💬 Help others in discussions
 
 ### Development Setup
 
 ```bash
-# Debug build for development
-./build.sh
+# Fork and clone
+git clone https://github.com/YOUR_USERNAME/zilium.git
+cd zilium
 
-# Run with debugging enabled
-gdb ./build/zilium-super-compactor
+# Create feature branch
+git checkout -b feature/amazing-feature
+
+# Make changes and test
+./build.sh
+./build-gui.sh
+
+# Commit and push
+git commit -m "Add amazing feature"
+git push origin feature/amazing-feature
+
+# Open Pull Request on GitHub
 ```
 
-## 📄 License
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for detailed guidelines.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 📜 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+### Third-Party Components
+
+- **Qt6 Framework** - The Qt Company Ltd. (LGPL v3 / GPL v3)
+- **nlohmann/json** - Niels Lohmann (MIT License)
+- **Android LP Tools** - AOSP (Apache 2.0 License)
+
+## 👥 Authors
+
+- **Badmaneers** - *Initial work and maintenance* - [@Badmaneers](https://github.com/Badmaneers)
 
 ## 🙏 Acknowledgments
 
-- AOSP for LP tools (lpmake, lpunpack, lpdump)
-- nlohmann for the excellent JSON library
-- The Android modding community
+- **AOSP Team** - For the LP tools (lpmake, lpunpack, lpdump)
+- **Niels Lohmann** - For the excellent JSON library
+- **Qt Project** - For the amazing GUI framework
+- **KDE Team** - For design inspiration (Breeze theme, HIG)
+- **Android ROM Community** - For feedback and testing
 
-## 📞 Support
+## 📞 Support & Contact
 
-- **Issues:** [GitHub Issues](https://github.com/Badmaneers/zilium/issues)
-- **Documentation:** See `docs/` folder
-- **Examples:** See [EXAMPLES.md](EXAMPLES.md)
+- 💬 **Telegram**: [@DumbDragon](https://t.me/DumbDragon)
+- 🐙 **GitHub**: [github.com/Badmaneers/zilium](https://github.com/Badmaneers/zilium)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/Badmaneers/zilium/issues)
+- 📧 **Email**: Open an issue for contact
 
-## 🔗 Related Projects
+## 🔮 Roadmap
 
-- [lpunpack_and_lpmake](https://github.com/LonelyFool/lpunpack_and_lpmake) - AOSP LP tools
-- [brotli](https://github.com/google/brotli) - Compression library
-- [payload_dumper](https://github.com/vm03/payload_dumper) - OTA payload extractor
+### Version 1.1 (Planned)
+- [ ] Windows and macOS support
+- [ ] Drag-and-drop support in GUI
+- [ ] Multi-language support (i18n)
+- [ ] Partition image preview
+- [ ] VBMeta patching integration
+
+
+## ⚠️ Disclaimer
+
+This tool is provided as-is without any warranty. Flashing modified system images can:
+- Void your device warranty
+- Brick your device if used incorrectly
+- Cause data loss
+
+**Always backup your data before flashing!**
+
+## 📊 Stats
+
+![GitHub stars](https://img.shields.io/github/stars/Badmaneers/zilium?style=social)
+![GitHub forks](https://img.shields.io/github/forks/Badmaneers/zilium?style=social)
+![GitHub watchers](https://img.shields.io/github/watchers/Badmaneers/zilium?style=social)
 
 ---
 
-Made with ❤️ for the Android modding community
+<p align="center">
+  <b>Made with ❤️ for the Android ROM Community</b>
+</p>
+
+<p align="center">
+  <sub>If this project helped you, consider starring ⭐ the repository!</sub>
+</p>
