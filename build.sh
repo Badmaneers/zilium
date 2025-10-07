@@ -12,7 +12,6 @@ VERSION="1.0.0"
 BUILD_MODE="Debug"
 CREATE_RELEASE=false
 CLEAN_BUILD=false
-REBUILD_LPTOOLS=false
 BUILD_GUI=false
 
 # Colors for output
@@ -41,7 +40,6 @@ Options:
   -h, --help          Show this help message
   -r, --release       Build in release mode with optimizations
   -c, --clean         Clean build directory before building
-  -l, --lptools       Force rebuild of LP tools (lpmake, lpunpack)
   -p, --package       Create release package (tar.gz)
   -g, --gui           Build Qt6 GUI application (requires Qt6)
   
@@ -54,7 +52,6 @@ Examples:
   $0 --release                # Release build
   $0 --release --package      # Release build + create package
   $0 --clean --release        # Clean + Release build
-  $0 --lptools                # Force rebuild LP tools + zilium_super_compactor
   $0 --gui                    # Build CLI + GUI
   $0 --release --gui --package  # Build everything and package
 
@@ -106,10 +103,6 @@ parse_args() {
                 CLEAN_BUILD=true
                 shift
                 ;;
-            -l|--lptools)
-                REBUILD_LPTOOLS=true
-                shift
-                ;;
             -p|--package)
                 CREATE_RELEASE=true
                 BUILD_MODE="Release"  # Force release mode for packaging
@@ -141,9 +134,9 @@ create_release_package() {
     # Copy binaries
     print_step "Copying binaries..."
     cp build/zilium-super-compactor "dist/${RELEASE_DIR}/bin/"
-    cp lpunpack_and_lpmake/bin/lpmake "dist/${RELEASE_DIR}/bin/" 2>/dev/null || true
-    cp lpunpack_and_lpmake/bin/lpunpack "dist/${RELEASE_DIR}/bin/" 2>/dev/null || true
-    cp lpunpack_and_lpmake/bin/lpdump "dist/${RELEASE_DIR}/bin/" 2>/dev/null || true
+    cp lptools-prebuilt/linux/lpmake "dist/${RELEASE_DIR}/bin/" 2>/dev/null || true
+    cp lptools-prebuilt/linux/lpunpack "dist/${RELEASE_DIR}/bin/" 2>/dev/null || true
+    cp lptools-prebuilt/linux/lpdump "dist/${RELEASE_DIR}/bin/" 2>/dev/null || true
     
     # Copy GUI binary if it exists
     local HAS_GUI=false
@@ -477,63 +470,48 @@ main() {
     print_success "All system requirements met"
     print_info "Build mode: ${BUILD_MODE}"
     
-    # PHASE 3: Build LP Tools
-    print_section "Phase 2: Build LP Tools"
+    # PHASE 2: Verify Prebuilt LP Tools
+    print_section "Phase 2: Verify Prebuilt LP Tools"
     
-    cd lpunpack_and_lpmake
+    LPTOOLS_DIR="lptools-prebuilt/linux"
     
-    # Check if LP tools already exist
-    LPTOOLS_EXIST=false
-    if [ -f "bin/lpmake" ] && [ -f "bin/lpunpack" ] && [ -f "bin/lpdump" ]; then
-        LPTOOLS_EXIST=true
-    fi
-    
-    # Determine if we need to build LP tools
-    BUILD_LPTOOLS=false
-    
-    if [ "$LPTOOLS_EXIST" = true ]; then
-        if [ "$REBUILD_LPTOOLS" = true ]; then
-            print_info "LP tools exist but rebuild forced via --lptools flag"
-            BUILD_LPTOOLS=true
+    # Check if prebuilt LP tools exist
+    if [ -d "$LPTOOLS_DIR" ]; then
+        if [ -f "$LPTOOLS_DIR/lpmake" ] && [ -f "$LPTOOLS_DIR/lpunpack" ] && [ -f "$LPTOOLS_DIR/lpdump" ]; then
+            print_success "Prebuilt LP tools found:"
+            print_info "  ✓ lpmake:   $LPTOOLS_DIR/lpmake"
+            print_info "  ✓ lpunpack: $LPTOOLS_DIR/lpunpack"
+            print_info "  ✓ lpdump:   $LPTOOLS_DIR/lpdump"
+            
+            # Make sure they're executable
+            chmod +x "$LPTOOLS_DIR/lpmake" "$LPTOOLS_DIR/lpunpack" "$LPTOOLS_DIR/lpdump" 2>/dev/null || true
         else
-            print_success "LP tools already built (lpmake, lpunpack, lpdump)"
-            print_info "Skipping LP tools rebuild (use --lptools to force rebuild)"
+            print_error "Some prebuilt LP tools are missing in $LPTOOLS_DIR"
+            [ ! -f "$LPTOOLS_DIR/lpmake" ] && print_error "  ✗ Missing: lpmake"
+            [ ! -f "$LPTOOLS_DIR/lpunpack" ] && print_error "  ✗ Missing: lpunpack"
+            [ ! -f "$LPTOOLS_DIR/lpdump" ] && print_error "  ✗ Missing: lpdump"
+            echo ""
+            print_info "Please ensure all LP tools are in $LPTOOLS_DIR/"
+            exit 1
         fi
     else
-        print_info "LP tools not found, building from source..."
-        BUILD_LPTOOLS=true
-    fi
-    
-    if [ "$BUILD_LPTOOLS" = true ]; then
-        print_step "Applying compilation fixes..."
-        
-        # Fix utility.cpp - add missing algorithm header
-        if [ -f "lib/liblp/utility.cpp" ]; then
-            if ! grep -q "#include <algorithm>" "lib/liblp/utility.cpp"; then
-                sed -i '17i#include <algorithm>' "lib/liblp/utility.cpp"
-                print_success "Fixed utility.cpp"
-            else
-                print_info "utility.cpp already fixed"
-            fi
-        fi
-        
-        print_step "Building lpmake and lpunpack..."
-        bash make.sh > /dev/null 2>&1
-        print_success "LP tools built successfully"
-    fi
-    
-    cd ..
-    
-    # Verify binaries
-    if [ -f "lpunpack_and_lpmake/bin/lpmake" ] && [ -f "lpunpack_and_lpmake/bin/lpunpack" ]; then
-        print_success "LP tools verified"
-    else
-        print_error "Failed to build LP tools"
+        print_error "Prebuilt LP tools directory not found: $LPTOOLS_DIR"
+        echo ""
+        print_info "Expected directory structure:"
+        print_info "  lptools-prebuilt/"
+        print_info "  ├── linux/"
+        print_info "  │   ├── lpmake"
+        print_info "  │   ├── lpunpack"
+        print_info "  │   └── lpdump"
+        print_info "  └── win/"
+        print_info "      ├── lpmake.exe"
+        print_info "      ├── lpunpack.exe"
+        print_info "      └── lpdump.exe"
         exit 1
     fi
 
-    # PHASE 4: Build Zilium Super Compactor
-    print_section "Phase 4: Build Zilium Super Compactor"
+    # PHASE 3: Build Zilium Super Compactor
+    print_section "Phase 3: Build Zilium Super Compactor"
 
     print_step "Creating build directory..."
     mkdir -p build
