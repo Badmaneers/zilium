@@ -379,12 +379,31 @@ bool ZiliumController::verifyOutputImage()
     
     // Try to run lpdump to verify the image
     QString appDir = QCoreApplication::applicationDirPath();
+    
+    // Platform-specific binary names
+#ifdef _WIN32
+    QString lpdumpName = "lpdump.exe";
+#else
+    QString lpdumpName = "lpdump";
+#endif
+    
     QStringList possiblePaths = {
-        QDir(appDir).filePath("lpdump"),
-        QDir(appDir).filePath("../lpunpack_and_lpmake/bin/lpdump"),
-        QDir(appDir).filePath("../../lpunpack_and_lpmake/bin/lpdump"),
-        "/home/zylex/Zilium/lpunpack_and_lpmake/bin/lpdump",
-        "lpdump"
+        // Windows packaged location (lptools directory next to executable)
+        QDir(appDir).filePath("lptools/" + lpdumpName),
+        // Same directory as executable
+        QDir(appDir).filePath(lpdumpName),
+        // Legacy paths for development builds
+        QDir(appDir).filePath("../lptools-prebuilt/win/" + lpdumpName),
+        QDir(appDir).filePath("../../lptools-prebuilt/win/" + lpdumpName),
+#ifndef _WIN32
+        // Linux packaged location
+        QDir(appDir).filePath("lptools/" + lpdumpName),
+        // Linux prebuilt location
+        QDir(appDir).filePath("../lptools-prebuilt/linux/" + lpdumpName),
+        QDir(appDir).filePath("../../lptools-prebuilt/linux/" + lpdumpName),
+#endif
+        // System PATH as fallback
+        lpdumpName
     };
     
     QString lpdump;
@@ -742,13 +761,27 @@ QString ZiliumController::findZiliumBinary()
     // First, try to find the binary in the same directory as the GUI
     QString appDir = QCoreApplication::applicationDirPath();
     
+    // Platform-specific binary names
+#ifdef _WIN32
+    QString binaryName = "zilium-super-compactor.exe";
+#else
+    QString binaryName = "zilium-super-compactor";
+#endif
+    
     // Check common binary names and locations
     QStringList possiblePaths = {
-        QDir(appDir).filePath("zilium-super-compactor"),
-        QDir(appDir).filePath("../build/zilium-super-compactor"),
-        QDir(appDir).filePath("../../build/zilium-super-compactor"),
+        // Same directory as GUI executable (packaged location)
+        QDir(appDir).filePath(binaryName),
+        // Development build locations
+        QDir(appDir).filePath("../" + binaryName),
+        QDir(appDir).filePath("../../" + binaryName),
+        QDir(appDir).filePath("../build/Release/" + binaryName),
+        QDir(appDir).filePath("../../build/Release/" + binaryName),
+#ifndef _WIN32
+        // System-wide installation paths (Linux)
         "/usr/local/bin/zilium-super-compactor",
         "/usr/bin/zilium-super-compactor"
+#endif
     };
     
     for (const QString &path : possiblePaths) {
@@ -757,8 +790,8 @@ QString ZiliumController::findZiliumBinary()
         }
     }
     
-    // Try to find in PATH
-    return "zilium-super-compactor";
+    // Try to find in PATH as fallback
+    return binaryName;
 }
 
 void ZiliumController::updatePartitionInConfig(int index, const QString &path)

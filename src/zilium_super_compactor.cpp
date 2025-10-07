@@ -5,10 +5,19 @@
 #include <filesystem>
 #include <cstdlib>
 #include <sstream>
-#include <unistd.h>
-#include <limits.h>
 #include <atomic>
 #include <ctime>
+#include <algorithm>
+
+// Platform-specific includes
+#ifdef _WIN32
+    #include <windows.h>
+    #define PATH_MAX MAX_PATH
+#else
+    #include <unistd.h>
+    #include <limits.h>
+#endif
+
 #include "../external/json/include/nlohmann/json.hpp" // You'll need nlohmann/json library
 
 using json = nlohmann::json;
@@ -109,6 +118,17 @@ struct SizeRecommendation {
 
 // Get the directory where the executable is located
 std::string get_executable_dir() {
+#ifdef _WIN32
+    // Windows implementation
+    char result[MAX_PATH];
+    DWORD count = GetModuleFileNameA(NULL, result, MAX_PATH);
+    if (count != 0) {
+        fs::path exe_path(result);
+        return exe_path.parent_path().string();
+    }
+    return "";
+#else
+    // Linux/Unix implementation
     char result[PATH_MAX];
     ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
     if (count != -1) {
@@ -117,6 +137,7 @@ std::string get_executable_dir() {
         return exe_path.parent_path().string();
     }
     return "";
+#endif
 }
 
 // Find lpmake binary - check bundled first, then system PATH
@@ -124,26 +145,72 @@ std::string find_lpmake() {
     // First, check in the same directory as zilium-super-compactor
     std::string exe_dir = get_executable_dir();
     if (!exe_dir.empty()) {
+#ifdef _WIN32
+        // Windows: Check lptools subdirectory first (packaged location)
+        fs::path packaged_lpmake = fs::path(exe_dir) / "lptools" / "lpmake.exe";
+        if (fs::exists(packaged_lpmake)) {
+            return packaged_lpmake.string();
+        }
+        // Fallback: same directory as executable
+        fs::path bundled_lpmake = fs::path(exe_dir) / "lpmake.exe";
+        if (fs::exists(bundled_lpmake)) {
+            return bundled_lpmake.string();
+        }
+#else
+        // Linux: Check lptools subdirectory first (packaged location)
+        fs::path packaged_lpmake = fs::path(exe_dir) / "lptools" / "lpmake";
+        if (fs::exists(packaged_lpmake)) {
+            return packaged_lpmake.string();
+        }
+        // Fallback: same directory as executable
         fs::path bundled_lpmake = fs::path(exe_dir) / "lpmake";
         if (fs::exists(bundled_lpmake)) {
             return bundled_lpmake.string();
         }
+#endif
     }
     
     // Fall back to system PATH
+#ifdef _WIN32
+    return "lpmake.exe";
+#else
     return "lpmake";
+#endif
 }
 
 // Find lpdump binary - check bundled first, then system PATH
 std::string find_lpdump() {
     std::string exe_dir = get_executable_dir();
     if (!exe_dir.empty()) {
+#ifdef _WIN32
+        // Windows: Check lptools subdirectory first (packaged location)
+        fs::path packaged = fs::path(exe_dir) / "lptools" / "lpdump.exe";
+        if (fs::exists(packaged)) {
+            return packaged.string();
+        }
+        // Fallback: same directory as executable
+        fs::path bundled = fs::path(exe_dir) / "lpdump.exe";
+        if (fs::exists(bundled)) {
+            return bundled.string();
+        }
+#else
+        // Linux: Check lptools subdirectory first (packaged location)
+        fs::path packaged = fs::path(exe_dir) / "lptools" / "lpdump";
+        if (fs::exists(packaged)) {
+            return packaged.string();
+        }
+        // Fallback: same directory as executable
         fs::path bundled = fs::path(exe_dir) / "lpdump";
         if (fs::exists(bundled)) {
             return bundled.string();
         }
+#endif
     }
+#ifdef _WIN32
+    return "lpdump.exe";
+#else
     return "lpdump";
+#endif
 }
 
 struct Partition {
@@ -185,10 +252,10 @@ std::string build_lpmake_command(const SuperConfig& config, const std::string& o
 
 void print_banner() {
     std::cout << "\n";
-    std::cout << "╔═══════════════════════════════════════════╗\n";
-    std::cout << "║      Zilium Super Compactor v1.0.0       ║\n";
-    std::cout << "║    Realme/OPPO/OnePlus A/B Compatible    ║\n";
-    std::cout << "╚═══════════════════════════════════════════╝\n";
+    std::cout << " ===============================================\n";
+    std::cout << "|      Zilium Super Compactor v1.0.0            |\n";
+    std::cout << "|    Realme/OPPO/OnePlus A/B Compatible         |\n";
+    std::cout << " ===============================================\n";
     std::cout << "\n";
 }
 
@@ -372,7 +439,7 @@ bool verify_partition_files(const SuperConfig& config) {
         
         // Skip partitions without a path (slot B placeholders for A/B devices)
         if (partition.path.empty()) {
-            log_message("  ⚬ " + partition.name + ": Slot placeholder (no image file)");
+            log_message("  o " + partition.name + ": Slot placeholder (no image file)");
             continue;
         }
         
@@ -385,11 +452,11 @@ bool verify_partition_files(const SuperConfig& config) {
         }
         
         if (!fs::exists(full_path)) {
-            std::cerr << "  ✗ " << partition.name << ": MISSING - " << full_path << std::endl;
+            std::cerr << "  X " << partition.name << ": MISSING - " << full_path << std::endl;
             all_exist = false;
         } else {
             auto file_size = fs::file_size(full_path);
-            std::cout << "  ✓ " << partition.name << ": " << (file_size / 1024 / 1024) << " MB" << std::endl;
+            std::cout << "  OK " << partition.name << ": " << (file_size / 1024 / 1024) << " MB" << std::endl;
         }
     }
     
@@ -462,19 +529,19 @@ ValidationResult validate_configuration(const SuperConfig& config) {
     if (!result.errors.empty()) {
         log_message("\nValidation Errors:");
         for (const auto& error : result.errors) {
-            log_message("  ✗ " + error);
+            log_message("  X " + error);
         }
     }
     
     if (!result.warnings.empty()) {
         log_message("\nValidation Warnings:");
         for (const auto& warning : result.warnings) {
-            log_message("  ⚠ " + warning);
+            log_message("  ! " + warning);
         }
     }
     
     if (result.success) {
-        log_message("✓ Configuration validation passed");
+        log_message("OK Configuration validation passed");
     }
     
     return result;
@@ -619,10 +686,10 @@ bool verify_super_image(const std::string& super_img_path) {
     int result = system(lpdump_cmd.c_str());
     
     if (result == 0) {
-        log_message("✓ Super image verification passed");
+        log_message("OK Super image verification passed");
         return true;
     } else {
-        log_message("✗ Super image verification failed");
+        log_message("X Super image verification failed");
         log_message("  Check /tmp/zilium_lpdump.log for details");
         return false;
     }
@@ -679,7 +746,7 @@ std::string build_lpmake_command(const SuperConfig& config, const std::string& o
         // Skip partitions without a path (slot B placeholders for A/B devices)
         if (partition.path.empty()) {
             // For empty slot partitions, only add partition definition without image
-            log_message("  ⚬ Adding placeholder partition: " + partition.name + " (slot B)");
+            log_message("  o Adding placeholder partition: " + partition.name + " (slot B)");
             cmd << " --partition=" << partition.name << ":"
                 << (partition.is_dynamic ? "readonly:" : "none:")
                 << "0:"  // Size 0 for placeholder partitions
@@ -855,6 +922,20 @@ int main(int argc, char* argv[]) {
     
     report_progress(50, "Building super image");
     
+#ifdef _WIN32
+    // On Windows, lpmake (cygwin-based) needs a proper temp directory
+    // Set TMPDIR to Windows TEMP converted to cygwin path format
+    char* temp_env = std::getenv("TEMP");
+    if (temp_env) {
+        std::string temp_path = temp_env;
+        // Convert Windows path to forward slashes for cygwin compatibility
+        std::replace(temp_path.begin(), temp_path.end(), '\\', '/');
+        std::string tmpdir_env = "TMPDIR=" + temp_path;
+        _putenv(tmpdir_env.c_str());
+        log_message("Set TMPDIR to: " + temp_path);
+    }
+#endif
+    
     auto start_time = std::time(nullptr);
     int result = system(lpmake_cmd.c_str());
     auto end_time = std::time(nullptr);
@@ -863,7 +944,7 @@ int main(int argc, char* argv[]) {
     report_progress(90, "Build complete, verifying");
     
     if (result == 0) {
-        log_message("\n✓ SUCCESS! Super image created at: " + output_path);
+        log_message("\nOK SUCCESS! Super image created at: " + output_path);
         
         if (fs::exists(output_path)) {
             auto output_size = fs::file_size(output_path);
@@ -886,9 +967,9 @@ int main(int argc, char* argv[]) {
         std::cout << "\nThe super.img has been successfully created, but it will NOT boot" << std::endl;
         std::cout << "with the STOCK vbmeta due to hash verification." << std::endl;
         std::cout << "\nThis is NORMAL and EXPECTED behavior because:" << std::endl;
-        std::cout << "  • Stock vbmeta contains a hash of the original super metadata" << std::endl;
-        std::cout << "  • The rebuilt super.img has new metadata with a different hash" << std::endl;
-        std::cout << "  • VBMeta verification will fail and prevent booting" << std::endl;
+        std::cout << "  - Stock vbmeta contains a hash of the original super metadata" << std::endl;
+        std::cout << "  - The rebuilt super.img has new metadata with a different hash" << std::endl;
+        std::cout << "  - VBMeta verification will fail and prevent booting" << std::endl;
         
         std::cout << "\n" << std::string(60, '-') << std::endl;
         std::cout << "SOLUTION - Choose ONE of these options:" << std::endl;
@@ -908,8 +989,8 @@ int main(int argc, char* argv[]) {
         std::cout << "   fastboot flash super super.img" << std::endl;
         
         std::cout << "\n3. USE PATCHED VBMETA (Recommended for custom ROMs):" << std::endl;
-        std::cout << "   • Use vbmeta from a custom ROM (LineageOS, etc.)" << std::endl;
-        std::cout << "   • Or create your own with avbtool" << std::endl;
+        std::cout << "   - Use vbmeta from a custom ROM (LineageOS, etc.)" << std::endl;
+        std::cout << "   - Or create your own with avbtool" << std::endl;
         
         std::cout << "\n4. BOOT WITHOUT FLASHING (Temporary test):" << std::endl;
         std::cout << "   fastboot erase vbmeta" << std::endl;
@@ -922,7 +1003,7 @@ int main(int argc, char* argv[]) {
         std::cout << std::endl;
         
     } else {
-        std::cerr << "\n✗ ERROR: Failed to create super image!" << std::endl;
+        std::cerr << "\nX ERROR: Failed to create super image!" << std::endl;
         std::cerr << "  Return code: " << result << std::endl;
         return static_cast<int>(ErrorCode::LPMAKE_FAILED);
     }
