@@ -11,12 +11,6 @@ obj/
 
 # Executables
 zilium-super-compactor
-# Note: LP tools source code is included, only ignore built binaries
-lpunpack_and_lpmake/bin/lpmake
-lpunpack_and_lpmake/bin/lpunpack
-lpunpack_and_lpmake/bin/lpadd
-lpunpack_and_lpmake/bin/lpdump  
-lpunpack_and_lpmake/bin/lpflash
 
 # CMake
 CMakeCache.txt
@@ -62,6 +56,7 @@ Makefile
 *.i*86
 *.x86_64
 *.hex
+!lptools-prebuilt/**/*.exe
 
 # Debug files
 *.dSYM/
