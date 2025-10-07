@@ -57,8 +57,13 @@ int main(int argc, char *argv[])
         }
     });
     
-    // Load QML
+    // Load QML - use platform-specific version on Windows
+#ifdef Q_OS_WIN
+    const QUrl url(u"qrc:/ZiliumGUI/qml/main_windows.qml"_qs);
+#else
     const QUrl url(u"qrc:/ZiliumGUI/qml/main.qml"_qs);
+#endif
+    
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {
         if (!obj && url == objUrl)

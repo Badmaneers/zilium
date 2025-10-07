@@ -1,8 +1,8 @@
-import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
-import QtQuick.Controls.Material
-import QtQuick.Window
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
+import QtQuick.Controls.Material 2.15
+import QtQuick.Window 2.15
 
 Window {
     id: guideWindow
@@ -12,13 +12,15 @@ Window {
     minimumWidth: 800
     minimumHeight: 600
     
-    // Center on screen
-    x: (Screen.width - width) / 2
-    y: (Screen.height - height) / 2
-    
-    flags: Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint
+    flags: Qt.Window | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint
     
     color: "#1e1e1e"
+    
+    // Center on screen when shown
+    Component.onCompleted: {
+        x = Screen.width / 2 - width / 2
+        y = Screen.height / 2 - height / 2
+    }
     
     property color primaryTextColor: "#e0e0e0"
     property color secondaryTextColor: "#b0b0b0"
@@ -41,10 +43,11 @@ Window {
         anchors.fill: parent
         anchors.margins: 20
         clip: true
+        ScrollBar.vertical.policy: ScrollBar.AlwaysOn
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
         
         ColumnLayout {
-            width: guideWindow.width - 80
+            width: guideWindow.width - 100
             spacing: 24
             
             // Header
@@ -469,9 +472,6 @@ Window {
                         columns: 2
                         columnSpacing: 16
                         rowSpacing: 8
-                        
-                        Label { text: "❌ 'LP tools not found'"; font.bold: true; color: primaryTextColor; font.pixelSize: 12 }
-                        Label { text: "Run: ./build.sh --lptools --release"; color: secondaryTextColor; font.pixelSize: 11; font.family: "monospace" }
                         
                         Label { text: "❌ 'Validation failed'"; font.bold: true; color: primaryTextColor; font.pixelSize: 12 }
                         Label { text: "Check partition file paths in JSON config"; color: secondaryTextColor; font.pixelSize: 11 }

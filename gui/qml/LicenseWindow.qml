@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Controls.Material 2.15
+import QtQuick.Window 2.15
 import ZiliumGUI 1.0
 
 Window {
@@ -11,6 +12,8 @@ Window {
     height: 600
     minimumWidth: 600
     minimumHeight: 400
+    
+    flags: Qt.Window | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint
     
     property bool isDarkTheme: true
     property color backgroundColor: isDarkTheme ? "#232629" : "#fcfcfc"
@@ -27,6 +30,10 @@ Window {
     color: backgroundColor
     
     Component.onCompleted: {
+        // Center window on screen
+        x = Screen.width / 2 - width / 2
+        y = Screen.height / 2 - height / 2
+        // Load license
         licenseText.text = ziliumController.loadLicenseFile()
     }
     
@@ -92,11 +99,11 @@ Window {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            ScrollBar.vertical.policy: ScrollBar.AsNeeded
-            contentWidth: availableWidth
+            ScrollBar.vertical.policy: ScrollBar.AlwaysOn
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
             
             ColumnLayout {
-                width: licenseWindow.width - 40
+                width: licenseWindow.width - 60
                 spacing: 24
                 
                 Item { Layout.preferredHeight: 20 }

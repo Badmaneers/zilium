@@ -6,8 +6,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+if(MSVC)
+    # Windows / MSVC specific flags
+    # /Zc:__cplusplus - Required for Qt6 to properly detect C++17
+    # /W3 - Warning level 3
+    # /MP - Multi-processor compilation
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /MP /Zc:__cplusplus")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
+    add_definitions(-DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN -DNOMINMAX)
+else()
+    # Linux / GCC/Clang flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+endif()
 
 # Build options
 option(BUILD_GUI "Build the Qt6 GUI application" OFF)
@@ -22,27 +33,47 @@ include_directories(
 )
 
 # ============================================================================
-# LP Tools Configuration
+# LP Tools Configuration (Prebuilt Binaries)
 # ============================================================================
-option(USE_SYSTEM_LPMAKE "Use system installed lpmake instead of building" OFF)
+option(USE_SYSTEM_LPMAKE "Use system installed lpmake instead of prebuilt" OFF)
 
 if(NOT USE_SYSTEM_LPMAKE)
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lpunpack_and_lpmake")
-        message(STATUS "Found lpunpack_and_lpmake directory")
-        
-        set(LPMAKE_BIN "${CMAKE_CURRENT_SOURCE_DIR}/lpunpack_and_lpmake/bin/lpmake")
-        set(LPUNPACK_BIN "${CMAKE_CURRENT_SOURCE_DIR}/lpunpack_and_lpmake/bin/lpunpack")
-        set(LPDUMP_BIN "${CMAKE_CURRENT_SOURCE_DIR}/lpunpack_and_lpmake/bin/lpdump")
-        
-        if(NOT EXISTS "${LPMAKE_BIN}" OR NOT EXISTS "${LPUNPACK_BIN}" OR NOT EXISTS "${LPDUMP_BIN}")
-            message(STATUS "LP tools not found, will be built by build.sh script")
+    # Determine platform-specific path for prebuilt LP tools
+    if(WIN32)
+        set(LPTOOLS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lptools-prebuilt/win")
+        set(LPTOOLS_EXT ".exe")
+    else()
+        set(LPTOOLS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lptools-prebuilt/linux")
+        set(LPTOOLS_EXT "")
+    endif()
+    
+    set(LPMAKE_BIN "${LPTOOLS_DIR}/lpmake${LPTOOLS_EXT}")
+    set(LPUNPACK_BIN "${LPTOOLS_DIR}/lpunpack${LPTOOLS_EXT}")
+    set(LPDUMP_BIN "${LPTOOLS_DIR}/lpdump${LPTOOLS_EXT}")
+    
+    if(EXISTS "${LPTOOLS_DIR}")
+        if(EXISTS "${LPMAKE_BIN}" AND EXISTS "${LPUNPACK_BIN}" AND EXISTS "${LPDUMP_BIN}")
+            message(STATUS "✓ Found prebuilt LP tools:")
+            message(STATUS "  - lpmake:   ${LPMAKE_BIN}")
+            message(STATUS "  - lpunpack: ${LPUNPACK_BIN}")
+            message(STATUS "  - lpdump:   ${LPDUMP_BIN}")
         else()
-            message(STATUS "LP tools already built (lpmake, lpunpack, lpdump)")
+            message(WARNING "Some LP tools missing in ${LPTOOLS_DIR}")
+            if(NOT EXISTS "${LPMAKE_BIN}")
+                message(WARNING "  Missing: lpmake${LPTOOLS_EXT}")
+            endif()
+            if(NOT EXISTS "${LPUNPACK_BIN}")
+                message(WARNING "  Missing: lpunpack${LPTOOLS_EXT}")
+            endif()
+            if(NOT EXISTS "${LPDUMP_BIN}")
+                message(WARNING "  Missing: lpdump${LPTOOLS_EXT}")
+            endif()
         endif()
     else()
-        message(WARNING "lpunpack_and_lpmake directory not found!")
-        message(FATAL_ERROR "Cannot proceed without lpmake source")
+        message(FATAL_ERROR "LP tools directory not found: ${LPTOOLS_DIR}")
     endif()
+else()
+    message(STATUS "Using system-installed LP tools")
 endif()
 
 # ============================================================================
@@ -54,8 +85,12 @@ add_executable(zilium-super-compactor
 
 target_link_libraries(zilium-super-compactor
     Threads::Threads
-    stdc++fs
 )
+
+# Platform-specific libraries
+if(NOT WIN32)
+    target_link_libraries(zilium-super-compactor stdc++fs)
+endif()
 
 # ============================================================================
 # GUI Executable (zilium-gui) - Optional
@@ -111,6 +146,15 @@ if(BUILD_GUI)
             ${GUI_RESOURCES}
         )
         
+        # Add Windows resource file (icon and version info)
+        if(WIN32)
+            set(WINDOWS_RC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/windows/zilium.rc")
+            if(EXISTS ${WINDOWS_RC_FILE})
+                target_sources(zilium-gui PRIVATE ${WINDOWS_RC_FILE})
+                message(STATUS "✓ Added Windows resource file: zilium.rc")
+            endif()
+        endif()
+        
         # Set output directory for GUI
         set_target_properties(zilium-gui PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gui"
@@ -132,8 +176,12 @@ if(BUILD_GUI)
             Qt6::Quick
             Qt6::QuickControls2
             Qt6::Qml
-            stdc++fs
         )
+        
+        # Platform-specific libraries for GUI
+        if(NOT WIN32)
+            target_link_libraries(zilium-gui PRIVATE stdc++fs)
+        endif()
         
         message(STATUS "✓ GUI target 'zilium-gui' configured")
         message(STATUS "  Output: ${CMAKE_BINARY_DIR}/gui/zilium-gui")
@@ -164,32 +212,23 @@ if(BUILD_GUI AND TARGET zilium-gui)
     )
 endif()
 
-# Install LP tools if built from source
+# Install LP tools if using prebuilt binaries
 if(NOT USE_SYSTEM_LPMAKE)
     if(EXISTS "${LPMAKE_BIN}")
-        install(FILES ${LPMAKE_BIN}
+        install(PROGRAMS ${LPMAKE_BIN}
             DESTINATION bin
-            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-                        GROUP_READ GROUP_EXECUTE
-                        WORLD_READ WORLD_EXECUTE
         )
     endif()
     
     if(EXISTS "${LPUNPACK_BIN}")
-        install(FILES ${LPUNPACK_BIN}
+        install(PROGRAMS ${LPUNPACK_BIN}
             DESTINATION bin
-            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-                        GROUP_READ GROUP_EXECUTE
-                        WORLD_READ WORLD_EXECUTE
         )
     endif()
     
     if(EXISTS "${LPDUMP_BIN}")
-        install(FILES ${LPDUMP_BIN}
+        install(PROGRAMS ${LPDUMP_BIN}
             DESTINATION bin
-            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-                        GROUP_READ GROUP_EXECUTE
-                        WORLD_READ WORLD_EXECUTE
         )
     endif()
 endif()
@@ -200,13 +239,75 @@ endif()
 message(STATUS "========================================")
 message(STATUS "Zilium Super Compactor Configuration:")
 message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  Platform: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "  C++ standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Install prefix: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  Use system lpmake: ${USE_SYSTEM_LPMAKE}")
 message(STATUS "  Build GUI: ${BUILD_GUI}")
 if(BUILD_GUI AND TARGET zilium-gui)
     message(STATUS "  GUI status: ENABLED ✓")
+    message(STATUS "  Qt6 version: ${Qt6_VERSION}")
 else()
     message(STATUS "  GUI status: DISABLED")
 endif()
 message(STATUS "========================================")
+
+# ============================================================================
+# Windows-specific Configuration
+# ============================================================================
+if(WIN32)
+    if(MSVC)
+        # Enable standards-conforming compiler behavior
+        add_compile_options(/permissive-)
+        
+        # Disable specific warnings
+        add_compile_options(
+            /wd4251  # needs to have dll-interface
+            /wd4275  # non dll-interface class used as base
+            /wd4267  # conversion from size_t to int, possible loss of data
+            /wd4244  # conversion warnings
+        )
+        
+        # Set runtime library
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+        
+        # Additional Windows definitions
+        add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+    endif()
+    
+    # CPack configuration for Windows installers
+    set(CPACK_GENERATOR "ZIP;NSIS")
+    set(CPACK_PACKAGE_NAME "Zilium")
+    set(CPACK_PACKAGE_VENDOR "Badmaneers")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Zilium Super Compactor - Android Super Partition Tool")
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "Zilium")
+    
+    # NSIS installer settings (if building installer)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/windows/zilium.ico")
+        set(CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/windows/zilium.ico")
+        set(CPACK_NSIS_MUI_UNIICON "${CMAKE_CURRENT_SOURCE_DIR}/windows/zilium.ico")
+    endif()
+    
+    set(CPACK_NSIS_DISPLAY_NAME "Zilium Super Compactor")
+    set(CPACK_NSIS_PACKAGE_NAME "Zilium Super Compactor")
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+    set(CPACK_NSIS_MODIFY_PATH ON)
+    set(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\zilium-gui.exe")
+    set(CPACK_NSIS_HELP_LINK "https://github.com/Badmaneers/zilium")
+    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/Badmaneers/zilium")
+    set(CPACK_NSIS_CONTACT "https://t.me/badmaneers")
+    
+    # Create Start Menu shortcuts
+    if(BUILD_GUI AND TARGET zilium-gui)
+        set(CPACK_NSIS_CREATE_ICONS_EXTRA
+            "CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\Zilium Super Compactor.lnk' '$INSTDIR\\\\bin\\\\zilium-gui.exe'"
+        )
+        set(CPACK_NSIS_DELETE_ICONS_EXTRA
+            "Delete '$SMPROGRAMS\\\\$START_MENU\\\\Zilium Super Compactor.lnk'"
+        )
+    endif()
+    
+    include(CPack)
+endif()

@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/ZiliumGUI">
         <file>qml/main.qml</file>
+        <file>qml/main_windows.qml</file>
         <file>qml/PartitionDelegate.qml</file>
         <file>qml/ThemeManager.qml</file>
         <file>qml/GuideDialog.qml</file>
