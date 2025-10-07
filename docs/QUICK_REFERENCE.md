@@ -1,9 +1,10 @@
 # Zilium Quick Reference
 
-Quick reference card for common tasks.
+Quick reference card for common tasks on Linux and Windows.
 
 ## 🚀 Installation
 
+**Linux:**
 ```bash
 # Clone
 git clone https://github.com/Badmaneers/zilium.git
@@ -14,19 +15,49 @@ cd zilium
 ./build-gui.sh      # GUI
 ```
 
+**Windows:**
+```batch
+REM Clone
+git clone https://github.com/Badmaneers/zilium.git
+cd zilium
+
+REM Build (edit build-windows.bat to set Qt path first)
+build-windows.bat
+
+REM Or download installer from releases
+REM https://github.com/Badmaneers/zilium/releases/latest
+```
+
 ## 📦 Basic Usage
 
 ### GUI
+
+**Linux:**
 ```bash
 ./build/gui/zilium-gui
 ```
+
+**Windows:**
+```batch
+REM From Start Menu or run:
+zilium-gui.exe
+```
+
+**Steps:**
 1. Browse → Select config JSON
 2. Browse → Select output folder
 3. Click ▶ Start
 
 ### CLI
+
+**Linux:**
 ```bash
 ./build/zilium-super-compactor -c config.json -o output/
+```
+
+**Windows:**
+```batch
+zilium-super-compactor.exe -c config.json -o output\
 ```
 
 ## ⌨️ Common Commands
@@ -182,13 +213,14 @@ du -c extracted/*.img | tail -1
 
 ## 📚 Documentation
 
-| Document | Purpose |
-|----------|---------|
-| [README.md](../README.md) | Project overview |
-| [INSTALLATION.md](INSTALLATION.md) | Install guide |
-| [USER_GUIDE.md](USER_GUIDE.md) | Complete guide |
-| [FAQ.md](FAQ.md) | Common questions |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
+| Document | Purpose | Platform |
+|----------|---------|----------|
+| [README.md](../README.md) | Project overview | All |
+| [INSTALLATION.md](INSTALLATION.md) | Linux install guide | Linux |
+| [WINDOWS_SUPPORT.md](WINDOWS_SUPPORT.md) | Windows guide | Windows |
+| [USER_GUIDE.md](USER_GUIDE.md) | Complete guide | All |
+| [FAQ.md](FAQ.md) | Common questions | All |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute | All |
 
 ## 🆘 Get Help
 
@@ -279,4 +311,4 @@ Before flashing:
 
 **Print this page for quick reference!**
 
-*Last updated: January 2025 - Zilium v1.0.0*
+*Last updated: October 2025 - Zilium v1.0.1 (with Windows support)*

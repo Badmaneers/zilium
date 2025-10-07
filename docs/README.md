@@ -7,6 +7,7 @@ Complete documentation for Zilium Super Compactor.
 ```
 docs/
 ├── INSTALLATION.md      # Installation guide for all Linux distributions
+├── WINDOWS_SUPPORT.md   # Complete Windows support guide (NEW)
 ├── USER_GUIDE.md        # Complete usage guide (GUI and CLI)
 ├── CLI_REFERENCE.md     # Command-line interface reference (coming soon)
 ├── GUI_TUTORIAL.md      # Step-by-step GUI tutorial (coming soon)
@@ -43,10 +44,17 @@ docs/
 
 - **[INSTALLATION.md](INSTALLATION.md)**
   - System requirements
-  - Distribution-specific instructions
+  - Linux distribution-specific instructions
   - GUI and CLI installation
   - Post-installation setup
   - Troubleshooting installation issues
+
+- **[WINDOWS_SUPPORT.md](WINDOWS_SUPPORT.md)** ⭐ NEW
+  - Windows installation guide
+  - Building on Windows
+  - Windows-specific UI features
+  - Platform differences
+  - Troubleshooting Windows issues
 
 - **[USER_GUIDE.md](USER_GUIDE.md)**
   - GUI walkthrough
@@ -127,8 +135,11 @@ docs/
 
 ### I want to...
 
-#### Install Zilium
+#### Install Zilium on Linux
 → [INSTALLATION.md](INSTALLATION.md)
+
+#### Install Zilium on Windows
+→ [WINDOWS_SUPPORT.md](WINDOWS_SUPPORT.md)
 
 #### Use the GUI
 → [USER_GUIDE.md](USER_GUIDE.md#gui-usage)
@@ -162,6 +173,7 @@ docs/
 |----------|--------|--------------|
 | README.md | ✅ Complete | 2025-01 |
 | INSTALLATION.md | ✅ Complete | 2025-01 |
+| WINDOWS_SUPPORT.md | ✅ Complete | 2025-10 |
 | USER_GUIDE.md | ✅ Complete | 2025-01 |
 | FAQ.md | ✅ Complete | 2025-01 |
 | CONTRIBUTING.md | ✅ Complete | 2025-01 |

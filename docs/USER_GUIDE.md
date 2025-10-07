@@ -1,6 +1,8 @@
 # User Guide
 
-Complete guide for using Zilium Super Compactor to build Android super partition images.
+Complete guide for using Zilium Super Compactor to build Android super partition images on Linux and Windows.
+
+**Windows Users**: Also see **[Windows Support Guide](WINDOWS_SUPPORT.md)** for Windows-specific features and troubleshooting.
 
 ## Table of Contents
 
@@ -68,6 +70,7 @@ Traditional Layout:              Dynamic Layout (Super):
 
 ### Step 1: Launch the Application
 
+**Linux:**
 ```bash
 # From build directory
 ./build/gui/zilium-gui
@@ -75,6 +78,18 @@ Traditional Layout:              Dynamic Layout (Super):
 # If installed system-wide
 zilium-gui
 ```
+
+**Windows:**
+```batch
+REM From Start Menu, or run:
+zilium-gui.exe
+
+REM From build directory:
+cd build\Release\gui
+zilium-gui.exe
+```
+
+> **Note for Windows users**: The Windows version uses an optimized responsive UI layout that automatically adapts to window size. See [Windows Support Guide](WINDOWS_SUPPORT.md) for details.
 
 ### Step 2: Select Configuration File
 
@@ -170,8 +185,14 @@ Click **Verify Output Image** to:
 
 ### Basic Syntax
 
+**Linux:**
 ```bash
 zilium-super-compactor [OPTIONS] -c CONFIG_FILE -o OUTPUT_DIR
+```
+
+**Windows:**
+```batch
+zilium-super-compactor.exe [OPTIONS] -c CONFIG_FILE -o OUTPUT_DIR
 ```
 
 ### Common Commands

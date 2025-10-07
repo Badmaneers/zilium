@@ -7,13 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- Windows and macOS support
+### In Progress
+- macOS support
 - Multi-language support (i18n)
 - Partition image preview in GUI
 - Drag-and-drop file support
 - VBMeta patching integration
-- AppImage and Flatpak packages
+
+### Planned
+- AppImage and Flatpak packages for Linux
+- Windows Store (MSIX) package
+- Winget and Chocolatey packages for Windows
+
+---
+
+## [1.0.1] - 2025-10-07
+
+### Added
+- 🪟 **Windows 10/11 support** (Major milestone!)
+  - Native Windows builds with Visual Studio 2022
+  - Windows-optimized responsive GUI layout
+  - Platform-specific QML (`main_windows.qml`) for proper rendering
+  - NSIS installer for easy Windows deployment
+  - Portable Windows package support
+  - High DPI display support for Windows
+  - Material Design theme integration
+- 📱 **Responsive UI Design**
+  - Window resize responsive sizing for all elements
+  - Adaptive button dimensions (95-110px width, 45-50px height)
+  - Adaptive font sizes (9-11px based on window width)
+  - Validation section scales between 200-250px
+  - Proper rendering from minimum (1000x600) to 4K displays
+- 🔧 **Windows Build System**
+  - `build-windows.bat` - Automated Windows build script
+  - `deploy-windows.ps1` - PowerShell deployment script
+  - CMake configuration for Visual Studio 2022
+  - `windows/installer.nsi` - NSIS installer script
+  - `windows/zilium.rc` - Windows resource file with icon
+  - `windows/zilium.manifest` - Windows manifest for proper DPI
+- 📖 **Comprehensive Windows Documentation**
+  - `docs/WINDOWS_SUPPORT.md` - Complete 10,000+ word Windows guide
+  - `docs/WINDOWS_CHANGES.md` - Technical implementation details
+  - Updated README with Windows instructions
+  - Updated installation guide with Windows section
+  - Updated user guide with Windows examples
+
+### Fixed
+- 🐛 GUI validation section cut off on Windows (explicit height management)
+- 🐛 Button text truncation showing "..." (single-line emoji format)
+- 🐛 Dialog scrollbars not appearing on Windows (AlwaysOn policy)
+- 🐛 UI elements misaligned when window minimized (responsive sizing)
+- 🐛 License and Guide window scrolling issues on Windows
+- 🐛 Layout.fillHeight calculating as zero on Windows Qt
+
+### Changed
+- 🔄 Platform-specific QML loading system
+  - Windows loads `main_windows.qml` with optimized layout
+  - Linux/macOS loads `main.qml` with original layout
+  - Automatic detection via `Q_OS_WIN` preprocessor
+- 🎨 Windows GUI adjustments
+  - Compact design: 11px labels, 10px fields, 28px height (vs Linux 12/11/32)
+  - Reduced spacing: 4-6px (vs Linux 8-12px)
+  - Single-line button text format for emoji compatibility
+  - Explicit Qt Quick 2.15 imports for Windows compatibility
+- 📋 README platform badge updated to "Linux | Windows"
+
+### Technical Details
+- **New Platforms**: Windows 10 (Build 1809+), Windows 11
+- **Compilers**: Added MSVC 2022 support (alongside GCC/Clang)
+- **Qt Version**: Tested with Qt 6.9.3 MSVC 2022 64-bit
+- **Dependencies**: Visual C++ Redistributable required for Windows
+- **Package Sizes**: 
+  - Windows GUI with Qt: ~80 MB
+  - Windows installer: ~85 MB
+  - Portable package: ~80 MB compressed
+
+### Known Issues
+- Windows 7/8 not supported (requires Windows 10 Build 1809 minimum)
+- Windows ARM64 not yet supported (x86_64 only)
+- No single-binary Windows executable (Qt DLLs required)
+- WSL integration not implemented
 
 ---
 
@@ -64,11 +137,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GUI Framework**: Qt 6.2+
 - **JSON Parsing**: nlohmann/json 3.11.2
 - **AOSP Tools**: lpmake, lpunpack, lpdump (included)
-- **Platform**: Linux (Ubuntu 20.04+, Arch, Fedora)
+- **Platforms**: Linux (Ubuntu 20.04+, Arch, Fedora)
 - **License**: MIT
 
 ### Known Issues
-- GUI only available on Linux
 - No automatic updates (manual git pull required)
 - Large super partitions (>8GB) may be slow on HDD
 
@@ -188,6 +260,10 @@ Report security issues to: [GitHub Security](https://github.com/Badmaneers/ziliu
 
 ## Contributors
 
+### v1.0.1
+- **Badmaneers** - Windows support implementation
+- **Community** - Testing and feedback on Windows builds
+
 ### v1.0.0
 - **Badmaneers** - Initial development and release
 
@@ -209,5 +285,6 @@ Special thanks to:
 
 ---
 
-[Unreleased]: https://github.com/Badmaneers/zilium/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Badmaneers/zilium/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Badmaneers/zilium/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Badmaneers/zilium/releases/tag/v1.0.0

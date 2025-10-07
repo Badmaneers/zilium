@@ -1,6 +1,8 @@
 # Installation Guide
 
-This guide provides detailed instructions for installing Zilium Super Compactor on various Linux distributions.
+This guide provides detailed instructions for installing Zilium Super Compactor on Linux distributions.
+
+**For Windows installation**, see **[Windows Support Guide](WINDOWS_SUPPORT.md)**.
 
 ## Table of Contents
 
@@ -15,7 +17,9 @@ This guide provides detailed instructions for installing Zilium Super Compactor 
 
 ## System Requirements
 
-### Minimum
+### Linux
+
+#### Minimum
 - **OS**: Linux (kernel 4.15+)
 - **Architecture**: x86_64 (AMD64)
 - **RAM**: 4 GB
@@ -23,15 +27,19 @@ This guide provides detailed instructions for installing Zilium Super Compactor 
 - **Compiler**: GCC 9+ or Clang 10+
 - **CMake**: 3.20 or higher
 
-### Recommended
+#### Recommended
 - **RAM**: 8 GB or more
 - **Storage**: SSD with 20 GB+ free space
 - **Display**: 1920x1080 for GUI
 
-### For GUI
+#### For GUI
 - **Qt**: 6.2 or higher
 - **OpenGL**: 2.0+ support
 - **Desktop Environment**: Any (GNOME, KDE, XFCE, etc.)
+
+### Windows
+
+See **[Windows Support Guide](WINDOWS_SUPPORT.md)** for Windows-specific requirements and installation.
 
 ---
 

@@ -2,10 +2,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/Badmaneers/zilium/releases)
-[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)](https://www.linux.org/)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)](https://github.com/Badmaneers/zilium)
 [![Qt](https://img.shields.io/badge/Qt-6.2+-green)](https://www.qt.io/)
 
-A powerful tool for rebuilding and compacting super partition images for Realme/OPPO/OnePlus devices with stock vbmeta compatibility.
+A powerful cross-platform tool for rebuilding and compacting super partition images for Realme/OPPO/OnePlus devices with stock vbmeta compatibility. Now with Windows support!
 
 ![Zilium Banner](docs/images/banner.png)
 
@@ -21,7 +21,9 @@ A powerful tool for rebuilding and compacting super partition images for Realme/
 
 ### 🎨 Graphical User Interface (GUI)
 - **Modern Qt6 Interface** - Beautiful, native-looking application
+- **Cross-Platform Support** - Optimized for Linux and Windows
 - **Dark/Light Themes** - Toggle between themes for comfort
+- **Platform-Specific UI** - Windows-optimized responsive layout
 - **Real-time Progress** - Live console output and progress tracking
 - **Partition Management** - Enable/disable partitions visually
 - **Configuration Validation** - Automatic error checking and warnings
@@ -73,24 +75,34 @@ A powerful tool for rebuilding and compacting super partition images for Realme/
 
 ### Prerequisites
 
-**Ubuntu/Debian:**
+**Linux (Ubuntu/Debian):**
 ```bash
 sudo apt update
 sudo apt install build-essential cmake qt6-base-dev qt6-declarative-dev qml6-module-qtquick-controls
 ```
 
-**Arch Linux:**
+**Linux (Arch):**
 ```bash
 sudo pacman -S base-devel cmake qt6-base qt6-declarative qt6-quickcontrols2
 ```
 
-**Fedora:**
+**Linux (Fedora):**
 ```bash
 sudo dnf install gcc-c++ cmake qt6-qtbase-devel qt6-qtdeclarative-devel
 ```
 
+**Windows:**
+```powershell
+# Download and install:
+# - Visual Studio 2022 (Community or higher)
+# - Qt 6.9.3 for MSVC 2022 64-bit
+# - CMake 3.20+
+# See docs/WINDOWS_SUPPORT.md for detailed instructions
+```
+
 ### Installation
 
+**Linux:**
 ```bash
 # Clone the repository
 git clone https://github.com/Badmaneers/zilium.git
@@ -104,13 +116,34 @@ cd zilium
 ./build-gui.sh           # Build GUI only
 ```
 
+**Windows:**
+```batch
+REM Clone the repository
+git clone https://github.com/Badmaneers/zilium.git
+cd zilium
+
+REM Edit build-windows.bat to set Qt path
+REM Then build everything
+build-windows.bat
+
+REM Or download pre-built installer from releases
+REM https://github.com/Badmaneers/zilium/releases/latest
+```
+
 ### Usage
 
 #### GUI Mode (Recommended for Beginners)
 
+**Linux:**
 ```bash
 # Launch the GUI
 ./build/gui/zilium-gui
+```
+
+**Windows:**
+```batch
+REM Launch from Start Menu, or run:
+zilium-gui.exe
 ```
 
 **Steps:**
@@ -140,7 +173,8 @@ cd zilium
 ## 📖 Documentation
 
 ### For Users
-- [Installation Guide](docs/INSTALLATION.md) - Detailed installation instructions
+- [Installation Guide](docs/INSTALLATION.md) - Linux installation instructions
+- **[Windows Support Guide](docs/WINDOWS_SUPPORT.md)** - ⭐ Complete Windows guide (NEW)
 - [User Guide](docs/USER_GUIDE.md) - Complete usage guide with examples
 - [GUI Tutorial](docs/GUI_TUTORIAL.md) - Step-by-step GUI walkthrough
 - [CLI Reference](docs/CLI_REFERENCE.md) - Command-line options and examples
@@ -225,21 +259,31 @@ zilium/
 ## 🔍 System Requirements
 
 ### Minimum Requirements
-- **OS**: Linux (Ubuntu 20.04+, Arch, Fedora 35+)
+
+**Linux:**
+- **OS**: Ubuntu 20.04+, Arch, Fedora 35+, or similar
 - **RAM**: 4 GB
-- **Disk**: 10 GB free space (for building ROM images)
+- **Disk**: 10 GB free space
 - **Compiler**: GCC 9+ or Clang 10+
 - **CMake**: 3.20+
 
-### For GUI
-- **Qt**: 6.2 or higher
-- **Graphics**: OpenGL 2.0+ support
+**Windows:**
+- **OS**: Windows 10 (Build 1809+) or Windows 11
+- **RAM**: 4 GB
+- **Disk**: 10 GB free space
+- **Compiler**: Visual Studio 2022 with C++ workload
+- **CMake**: 3.20+
+
+### For GUI (Both Platforms)
+- **Qt**: 6.2 or higher (6.9.3 recommended for Windows)
+- **Graphics**: OpenGL 2.0+ / DirectX 11+
+- **Display**: 1280x720 or higher (1920x1080 recommended)
 
 ### Recommended
 - **CPU**: Quad-core or better
 - **RAM**: 8 GB or more
 - **Disk**: SSD for faster builds
-- **Display**: 1280x720 or higher resolution
+- **Display**: 1920x1080 or higher resolution
 
 ## 🤝 Contributing
 
@@ -307,12 +351,20 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 🔮 Roadmap
 
-### Version 1.1 (Planned)
-- [ ] Windows and macOS support
+### Version 1.1 (Current - October 2025)
+- [x] **Windows support** ⭐ DONE
+- [x] Windows-optimized responsive UI
+- [x] Platform-specific QML layouts
+- [x] NSIS installer for Windows
+- [ ] macOS support
 - [ ] Drag-and-drop support in GUI
 - [ ] Multi-language support (i18n)
+
+### Version 1.2 (Planned)
 - [ ] Partition image preview
 - [ ] VBMeta patching integration
+- [ ] Windows Store (MSIX) package
+- [ ] Winget package manager support
 
 
 ## ⚠️ Disclaimer
