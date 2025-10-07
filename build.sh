@@ -6,7 +6,7 @@
 set -e  # Exit on error
 
 # Script version
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 # Build mode
 BUILD_MODE="Debug"

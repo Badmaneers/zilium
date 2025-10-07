@@ -1094,7 +1094,7 @@ ApplicationWindow {
                             }
                             
                             Label {
-                                text: "Version: 1.0.0"
+                                text: "Version: 1.0.1"
                                 color: secondaryTextColor
                                 font.pixelSize: 12
                                 Layout.alignment: Qt.AlignHCenter
