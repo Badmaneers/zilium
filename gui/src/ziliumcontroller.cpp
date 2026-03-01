@@ -18,6 +18,7 @@ ZiliumController::ZiliumController(QObject *parent)
     , m_isRunning(false)
     , m_isValid(false)
     , m_hasUnsavedChanges(false)
+    , m_useSparseFormat(true)
     , m_process(nullptr)
     , m_progressTimer(new QTimer(this))
 {
@@ -51,6 +52,14 @@ void ZiliumController::setOutputPath(const QString &path)
     if (m_outputPath != path) {
         m_outputPath = path;
         emit outputPathChanged();
+    }
+}
+
+void ZiliumController::setSparseFormat(bool useSparse)
+{
+    if (m_useSparseFormat != useSparse) {
+        m_useSparseFormat = useSparse;
+        emit sparseFormatChanged();
     }
 }
 
@@ -437,20 +446,18 @@ bool ZiliumController::verifyOutputImage()
     
     // lpdump outputs to stdout on success
     if (!stdoutText.isEmpty()) {
-        appendConsoleOutput("✓ Image verification: PASSED");
-        appendConsoleOutput("");
-        appendConsoleOutput("Super Image Details:");
-        appendConsoleOutput(stdoutText);
+        appendConsoleOutput("✓ Image verification: PASSED (Opened in external dialog)");
+        emit verificationCompleted(true, stdoutText);
         return true;
     } else if (!stderrText.isEmpty()) {
-        appendConsoleOutput("✗ Image verification: FAILED");
-        appendConsoleOutput("");
-        appendConsoleOutput("Error details:");
-        appendConsoleOutput(stderrText);
+        appendConsoleOutput("✗ Image verification: FAILED (Opened in external dialog)");
+        emit verificationCompleted(false, stderrText);
         return false;
     } else {
+        QString unknownCode = QString("lpdump exited with code: %1").arg(process.exitCode());
         appendConsoleOutput("⚠ Image verification: UNKNOWN");
-        appendConsoleOutput(QString("lpdump exited with code: %1").arg(process.exitCode()));
+        appendConsoleOutput(unknownCode);
+        emit verificationCompleted(false, unknownCode);
         return false;
     }
 }
@@ -557,6 +564,15 @@ void ZiliumController::startCompiling()
     
     // Pass ROM directory, specific JSON filename, and output directory
     arguments << romDir << configFileName << m_outputPath;
+    
+    // Pass format choice via environment variables
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    if (m_useSparseFormat) {
+        env.insert("ZILIUM_FORCE_SPARSE", "1");
+    } else {
+        env.insert("ZILIUM_FORCE_RAW", "1");
+    }
+    m_process->setProcessEnvironment(env);
     
     appendConsoleOutput("╔═══════════════════════════════════════════╗");
     appendConsoleOutput("║         Starting Compilation              ║");

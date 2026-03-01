@@ -16,6 +16,7 @@
 #else
     #include <unistd.h>
     #include <limits.h>
+    #include <iostream>
 #endif
 
 #include "../external/json/include/nlohmann/json.hpp" // You'll need nlohmann/json library
@@ -245,10 +246,12 @@ struct SuperConfig {
     std::string super_name;
     uint32_t alignment_offset;
     bool virtual_ab;
+    bool use_sparse_format;
 };
 
 // Forward declarations
 std::string build_lpmake_command(const SuperConfig& config, const std::string& output_path);
+bool prompt_for_sparse_format();
 
 void print_banner() {
     std::cout << "\n";
@@ -327,36 +330,40 @@ bool parse_super_config(const std::string& json_path, const std::string& base_pa
     }
     
     // Parse metadata configuration - CRITICAL for vbmeta compatibility
-    config.metadata_size = 65536; // Default
-    config.metadata_slots = 2; // Default for A/B
+    // Extract metadata_size from super_meta.size (MUST match original)
+    config.metadata_size = 65536; // Default fallback
+    if (j.contains("super_meta") && j["super_meta"].contains("size")) {
+        config.metadata_size = std::stoull(j["super_meta"]["size"].get<std::string>());
+    }
+    config.metadata_slots = 2; // Default for A-slot
     config.super_name = "super"; // Default
     config.alignment_offset = 0; // Default
     config.virtual_ab = false; // Default
     
     // Detect slot configuration from groups
-    // Non-A/B: has "main" group, metadata_slots = 2
-    // A/B: has "main_a" and "main_b" groups, metadata_slots = 3
+    // A-slot: has "main" group, metadata_slots = 2
+    // A/B-slot: has "main_a" and "main_b" groups, metadata_slots = 3
     bool is_ab_device = false;
-    for (const auto& grp : j["groups"]) {
-        std::string group_name = grp["name"].get<std::string>();
-        if (group_name == "main_a" || group_name == "main_b") {
-            is_ab_device = true;
-            break;
+    if (j.contains("groups") && j["groups"].is_array()) {
+        for (const auto& grp : j["groups"]) {
+            std::string group_name = grp["name"].get<std::string>();
+            if (group_name == "main_a" || group_name == "main_b") {
+                is_ab_device = true;
+                break;
+            }
         }
     }
     
     // Set metadata_slots based on device type
     if (is_ab_device) {
-        config.metadata_slots = 3; // A/B devices use 3 slots (a, b, and one extra)
+        config.metadata_slots = 3; // A/B devices use 3 slots
     } else {
-        config.metadata_slots = 2; // Non-A/B devices use 2 slots
+        config.metadata_slots = 2; // A-slot devices use 2 slots
     }
     
     if (j.contains("lpmake")) {
         auto& lpmake = j["lpmake"];
-        if (lpmake.contains("metadata_size")) {
-            config.metadata_size = std::stoul(lpmake["metadata_size"].get<std::string>());
-        }
+        // Allow explicit override of metadata_slots if specified in config
         if (lpmake.contains("metadata_slots")) {
             config.metadata_slots = std::stoul(lpmake["metadata_slots"].get<std::string>());
         }
@@ -695,7 +702,63 @@ bool verify_super_image(const std::string& super_img_path) {
     }
 }
 
+bool prompt_for_sparse_format() {
+    // In non-interactive mode (GUI), the sparse format is passed as a command-line argument.
+    // If not running in CLI mode, don't prompt here.
+    bool want_prompt = true;
 
+    // Check if running in interactive mode
+#ifdef _WIN32
+    // On Windows, assume CLI mode by default
+    bool isInteractive = true;
+#else
+    // On Unix/Linux, check if stdin is a TTY
+    bool isInteractive = isatty(STDIN_FILENO);
+#endif
+
+    // Look for arguments explicitly preventing prompt or setting format
+    // This is currently handled by the caller, so we will still check interactive mode
+    if (!isInteractive) {
+        // Return whatever is currently configured instead of printing to log
+        // The GUI will have already set this via arguments
+        return true; 
+    }
+
+    std::cout << "\n" << std::string(60, '-') << std::endl;
+    std::cout << "SPARSE FORMAT OPTIONS" << std::endl;
+    std::cout << std::string(60, '-') << std::endl;
+    std::cout << "\nDo you want to create a SPARSE or RAW image?\n" << std::endl;
+    std::cout << "  [1] SPARSE format (RECOMMENDED)" << std::endl;
+    std::cout << "      - Smaller file size" << std::endl;
+    std::cout << "      - Better compression" << std::endl;
+    std::cout << "      - Required for OTA updates" << std::endl;
+    std::cout << "      - Default for Android devices" << std::endl;
+    std::cout << "\n  [2] RAW format" << std::endl;
+    std::cout << "      - Full uncompressed image" << std::endl;
+    std::cout << "      - Larger file size" << std::endl;
+    std::cout << "      - Direct block-by-block data" << std::endl;
+    
+    std::cout << "\nEnter your choice (1-2) [default: 1]: ";
+    
+    std::string choice;
+    std::getline(std::cin, choice);
+    
+    // Default to sparse (1) if empty
+    if (choice.empty()) {
+        choice = "1";
+    }
+    
+    if (choice == "1") {
+        std::cout << "\n✓ Using SPARSE format" << std::endl;
+        return true;
+    } else if (choice == "2") {
+        std::cout << "\n✓ Using RAW format" << std::endl;
+        return false;
+    } else {
+        std::cout << "\nInvalid choice, defaulting to SPARSE format" << std::endl;
+        return true;
+    }
+}
 
 std::string build_lpmake_command(const SuperConfig& config, const std::string& output_path) {
     std::ostringstream cmd;
@@ -779,7 +842,12 @@ std::string build_lpmake_command(const SuperConfig& config, const std::string& o
         }
     }
     
-    // Output file - use raw format (not sparse) for direct flashing
+    // Sparse format - optional based on user choice
+    if (config.use_sparse_format) {
+        cmd << " --sparse";
+    }
+    
+    // Output file
     cmd << " --output=" << output_path;
     
     return cmd.str();
@@ -872,6 +940,21 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    // Default to sparse format
+    config.use_sparse_format = true;
+    
+    // Check if the format was provided as an environment variable (used by GUI)
+    const char* force_raw_env = std::getenv("ZILIUM_FORCE_RAW");
+    if (force_raw_env && std::string(force_raw_env) == "1") {
+        config.use_sparse_format = false;
+        log_message("GUI requested RAW format via environment variable");
+    }
+    const char* force_sparse_env = std::getenv("ZILIUM_FORCE_SPARSE");
+    if (force_sparse_env && std::string(force_sparse_env) == "1") {
+        config.use_sparse_format = true;
+        log_message("GUI requested SPARSE format via environment variable");
+    }
+    
     // Validate configuration
     report_progress(10, "Validating configuration");
     ValidationResult validation = validate_configuration(config);
@@ -897,6 +980,18 @@ int main(int argc, char* argv[]) {
     if (is_cancelled()) {
         log_message("\nOperation cancelled by user");
         return static_cast<int>(ErrorCode::CANCELLED);
+    }
+    
+    // Prompt user for sparse format preference (only if not running via GUI)
+    // Check if running in interactive mode
+    bool isInteractive = true;
+#ifndef _WIN32
+    isInteractive = isatty(STDIN_FILENO);
+#endif
+
+    // If we're fully interactive and env vars weren't set, then prompt
+    if (isInteractive && !std::getenv("ZILIUM_FORCE_RAW") && !std::getenv("ZILIUM_FORCE_SPARSE")) {
+        config.use_sparse_format = prompt_for_sparse_format();
     }
     
     // Build super.img

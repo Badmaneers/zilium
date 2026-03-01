@@ -15,6 +15,102 @@ ApplicationWindow {
     minimumHeight: 600
     visible: true
     
+    // Verification Result Dialog
+    Rectangle {
+        id: verificationDialog
+        anchors.fill: parent
+        color: "#000000"
+        opacity: 0.7
+        visible: false
+        z: 999
+        
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {} // Prevent clicks from passing through
+        }
+        
+        Rectangle {
+            color: surfaceColor
+            border.color: borderColor
+            border.width: 2
+            radius: 8
+            width: Math.min(800, parent.width - 60)
+            height: Math.min(600, parent.height - 60)
+            anchors.centerIn: parent
+            
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 16
+                
+                RowLayout {
+                    Layout.fillWidth: true
+                    
+                    Label {
+                        id: verificationDialogTitle
+                        text: "Lpdump Verification Results"
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: primaryTextColor
+                        Layout.fillWidth: true
+                    }
+                }
+                
+                // Divider
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: borderColor
+                }
+                
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    
+                    TextArea {
+                        id: verificationResultText
+                        readOnly: true
+                        textFormat: Text.PlainText
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        color: primaryTextColor
+                        wrapMode: Text.WrapAnywhere
+                        background: null
+                    }
+                }
+                
+                // Divider
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: borderColor
+                }
+                
+                Button {
+                    text: "Close"
+                    Layout.alignment: Qt.AlignRight
+                    Material.background: buttonColor
+                    Material.foreground: primaryTextColor
+                    
+                    onClicked: {
+                        verificationDialog.visible = false
+                    }
+                }
+            }
+        }
+    }
+    
+    Connections {
+        target: ziliumController
+        function onVerificationCompleted(success, resultText) {
+            verificationDialogTitle.text = success ? "✓ Lpdump Verification Passed" : "✗ Lpdump Verification Failed"
+            verificationDialogTitle.color = success ? "#4caf50" : "#f44336"
+            verificationResultText.text = resultText
+            verificationDialog.visible = true
+        }
+    }
+    
     // Theme properties
     property bool isDarkTheme: true
     property color backgroundColor: isDarkTheme ? "#232629" : "#fcfcfc"
@@ -425,7 +521,7 @@ ApplicationWindow {
                             }
                             
                             Label {
-                                text: "Metadata Version:"
+                                text: "Metadata Slot Count:"
                                 color: primaryTextColor
                                 font.bold: true
                                 font.pixelSize: 11

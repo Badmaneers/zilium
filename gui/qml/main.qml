@@ -15,6 +15,377 @@ ApplicationWindow {
     minimumHeight: 600
     visible: true
     
+    // Dialogs
+    Rectangle {
+        id: sparseDialog
+        anchors.fill: parent
+        color: "#000000"
+        opacity: 0.7
+        visible: false
+        z: 999
+        
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {} // Prevent clicks from passing through
+        }
+        
+        Rectangle {
+            id: dialogBox
+            color: surfaceColor
+            border.color: borderColor
+            border.width: 2
+            radius: 8
+            width: Math.min(550, parent.width - 40)
+            height: dialogLayout.implicitHeight + 48
+            anchors.centerIn: parent
+            
+            property int selectedFormat: 0
+            signal formatSelected(int format)
+            
+            ColumnLayout {
+                id: dialogLayout
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 24
+                spacing: 16
+                
+                // Title
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    
+                    Label {
+                        text: "📁 Choose Image Format"
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: primaryTextColor
+                    }
+                    
+                    Label {
+                        text: "Select the format for your super.img"
+                        font.pixelSize: 12
+                        color: secondaryTextColor
+                        wrapMode: Text.Wrap
+                    }
+                }
+                
+                // Divider
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: borderColor
+                }
+                
+                // Option 1: SPARSE
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 120
+                    color: dialogBox.selectedFormat === 0 ? Qt.lighter(surfaceColor, 1.3) : "transparent"
+                    border.color: dialogBox.selectedFormat === 0 ? accentColor : borderColor
+                    border.width: 2
+                    radius: 4
+                    
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: dialogBox.selectedFormat = 0
+                    }
+                    
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 8
+                        
+                        RowLayout {
+                            spacing: 8
+                            
+                            Rectangle {
+                                color: "#27ae60"
+                                radius: 4
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: "white"
+                                    font.bold: true
+                                    font.pixelSize: 16
+                                }
+                            }
+                            
+                            ColumnLayout {
+                                spacing: 0
+                                Label {
+                                    text: "SPARSE Format"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    color: primaryTextColor
+                                }
+                                Label {
+                                    text: "RECOMMENDED"
+                                    font.pixelSize: 10
+                                    color: "#27ae60"
+                                    font.bold: true
+                                }
+                            }
+                            
+                            Item { Layout.fillWidth: true }
+                            
+                            Rectangle {
+                                width: 24
+                                height: 24
+                                radius: 12
+                                border.color: dialogBox.selectedFormat === 0 ? accentColor : borderColor
+                                border.width: 2
+                                color: "transparent"
+                                
+                                Rectangle {
+                                    anchors.centerIn: parent
+                                    width: 14
+                                    height: 14
+                                    radius: 7
+                                    color: accentColor
+                                    visible: dialogBox.selectedFormat === 0
+                                }
+                            }
+                        }
+                        
+                        Label {
+                            text: "• Smaller file size\n• Better compression\n• Required for OTA\n• Default for Android"
+                            font.pixelSize: 11
+                            color: secondaryTextColor
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            verticalAlignment: Text.AlignTop
+                        }
+                    }
+                }
+                
+                // Option 2: RAW
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 120
+                    color: dialogBox.selectedFormat === 1 ? Qt.lighter(surfaceColor, 1.3) : "transparent"
+                    border.color: dialogBox.selectedFormat === 1 ? accentColor : borderColor
+                    border.width: 2
+                    radius: 4
+                    
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: dialogBox.selectedFormat = 1
+                    }
+                    
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        spacing: 8
+                        
+                        RowLayout {
+                            spacing: 8
+                            
+                            Rectangle {
+                                color: "#f39c12"
+                                radius: 4
+                                Layout.preferredWidth: 28
+                                Layout.preferredHeight: 28
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "⚡"
+                                    color: "white"
+                                    font.bold: true
+                                    font.pixelSize: 16
+                                }
+                            }
+                            
+                            ColumnLayout {
+                                spacing: 0
+                                Label {
+                                    text: "RAW Format"
+                                    font.pixelSize: 14
+                                    font.bold: true
+                                    color: primaryTextColor
+                                }
+                                Label {
+                                    text: "UNCOMPRESSED"
+                                    font.pixelSize: 10
+                                    color: "#f39c12"
+                                    font.bold: true
+                                }
+                            }
+                            
+                            Item { Layout.fillWidth: true }
+                            
+                            Rectangle {
+                                width: 24
+                                height: 24
+                                radius: 12
+                                border.color: dialogBox.selectedFormat === 1 ? accentColor : borderColor
+                                border.width: 2
+                                color: "transparent"
+                                
+                                Rectangle {
+                                    anchors.centerIn: parent
+                                    width: 14
+                                    height: 14
+                                    radius: 7
+                                    color: accentColor
+                                    visible: dialogBox.selectedFormat === 1
+                                }
+                            }
+                        }
+                        
+                        Label {
+                            text: "• Full uncompressed\n• Larger file size\n• Direct block data\n• Slower flashing"
+                            font.pixelSize: 11
+                            color: secondaryTextColor
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            verticalAlignment: Text.AlignTop
+                        }
+                    }
+                }
+                
+                
+                // Divider
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: borderColor
+                }
+                
+                // Buttons
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    
+                    Button {
+                        text: "Cancel"
+                        Layout.fillWidth: true
+                        Material.foreground: primaryTextColor
+                        highlighted: false
+                        palette.buttonText: primaryTextColor
+                        
+                        onClicked: {
+                            sparseDialog.visible = false
+                        }
+                    }
+                    
+                    Button {
+                        text: "Build with " + (dialogBox.selectedFormat === 0 ? "SPARSE" : "RAW")
+                        Layout.fillWidth: true
+                        Material.foreground: "#ffffff"
+                        highlighted: true
+                        
+                        onClicked: {
+                            console.log("User selected:", dialogBox.selectedFormat === 0 ? "SPARSE" : "RAW")
+                            ziliumController.useSparseFormat = (dialogBox.selectedFormat === 0)
+                            sparseDialog.visible = false
+                            ziliumController.startCompiling()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Verification Result Dialog
+    Rectangle {
+        id: verificationDialog
+        anchors.fill: parent
+        color: "#000000"
+        opacity: 0.7
+        visible: false
+        z: 999
+        
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {} // Prevent clicks from passing through
+        }
+        
+        Rectangle {
+            color: surfaceColor
+            border.color: borderColor
+            border.width: 2
+            radius: 8
+            width: Math.min(800, parent.width - 60)
+            height: Math.min(600, parent.height - 60)
+            anchors.centerIn: parent
+            
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 16
+                
+                RowLayout {
+                    Layout.fillWidth: true
+                    
+                    Label {
+                        id: verificationDialogTitle
+                        text: "Lpdump Verification Results"
+                        font.pixelSize: 18
+                        font.bold: true
+                        color: primaryTextColor
+                        Layout.fillWidth: true
+                    }
+                }
+                
+                // Divider
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: borderColor
+                }
+                
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    
+                    TextArea {
+                        id: verificationResultText
+                        readOnly: true
+                        textFormat: Text.PlainText
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        color: primaryTextColor
+                        wrapMode: Text.WrapAnywhere
+                        background: null
+                    }
+                }
+                
+                // Divider
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: borderColor
+                }
+                
+                Button {
+                    text: "Close"
+                    Layout.alignment: Qt.AlignRight
+                    Material.background: buttonColor
+                    Material.foreground: primaryTextColor
+                    
+                    onClicked: {
+                        verificationDialog.visible = false
+                    }
+                }
+            }
+        }
+    }
+    
+    Connections {
+        target: ziliumController
+        function onVerificationCompleted(success, resultText) {
+            verificationDialogTitle.text = success ? "✓ Lpdump Verification Passed" : "✗ Lpdump Verification Failed"
+            verificationDialogTitle.color = success ? "#4caf50" : "#f44336"
+            verificationResultText.text = resultText
+            verificationDialog.visible = true
+        }
+    }
+    
     // Theme properties
     property bool isDarkTheme: true
     property color backgroundColor: isDarkTheme ? "#232629" : "#fcfcfc"
@@ -393,7 +764,7 @@ ApplicationWindow {
                             }
                             
                             Label {
-                                text: "Metadata Version:"
+                                text: "Metadata Slot Count:"
                                 color: primaryTextColor
                                 font.bold: true
                             }
@@ -700,8 +1071,8 @@ ApplicationWindow {
                                                 console.log("Stop compiling clicked")
                                                 ziliumController.stopCompiling()
                                             } else {
-                                                console.log("Start compiling clicked")
-                                                ziliumController.startCompiling()
+                                                console.log("Start clicked - showing sparse format dialog")
+                                                sparseDialog.visible = true
                                             }
                                         }
                                     }

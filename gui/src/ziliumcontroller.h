@@ -26,6 +26,7 @@ class ZiliumController : public QObject
     Q_PROPERTY(bool isValid READ isValid NOTIFY isValidChanged)
     Q_PROPERTY(QString estimatedTime READ estimatedTime NOTIFY estimatedTimeChanged)
     Q_PROPERTY(bool hasUnsavedChanges READ hasUnsavedChanges NOTIFY hasUnsavedChangesChanged)
+    Q_PROPERTY(bool useSparseFormat READ useSparseFormat WRITE setSparseFormat NOTIFY sparseFormatChanged)
 
 public:
     explicit ZiliumController(QObject *parent = nullptr);
@@ -42,10 +43,12 @@ public:
     bool isValid() const { return m_isValid; }
     QString estimatedTime() const { return m_estimatedTime; }
     bool hasUnsavedChanges() const { return m_hasUnsavedChanges; }
+    bool useSparseFormat() const { return m_useSparseFormat; }
     
     // Property setters
     void setConfigPath(const QString &path);
     void setOutputPath(const QString &path);
+    void setSparseFormat(bool useSparse);
 
 public slots:
     // File operations
@@ -90,6 +93,8 @@ signals:
     void isValidChanged();
     void estimatedTimeChanged();
     void hasUnsavedChangesChanged();
+    void sparseFormatChanged();
+    void verificationCompleted(bool success, const QString &resultText);
 
 private slots:
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
@@ -118,6 +123,7 @@ private:
     bool m_isValid;
     QString m_estimatedTime;
     bool m_hasUnsavedChanges;
+    bool m_useSparseFormat;
     
     QProcess *m_process;
     QTimer *m_progressTimer;
