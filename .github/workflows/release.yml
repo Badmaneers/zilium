@@ -49,9 +49,15 @@ jobs:
         id: locate_package
         run: |
           PACKAGE_FILE=$(ls dist/zilium-super-compactor-*.tar.gz | head -n 1)
+          SHA_FILE=$(ls dist/zilium-super-compactor-*.tar.gz.sha256 | head -n 1)
           echo "PACKAGE_FILE=$PACKAGE_FILE" >> $GITHUB_ENV
+          echo "SHA_FILE=$SHA_FILE" >> $GITHUB_ENV
           PACKAGE_NAME=$(basename "$PACKAGE_FILE")
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+          
+          # Read SHA256 sum for release body
+          SHA_VAL=$(cat "$SHA_FILE" | cut -d' ' -f1)
+          echo "APP_SHA256=$SHA_VAL" >> $GITHUB_ENV
 
       - name: Generate Changelog
         run: |
@@ -64,14 +70,19 @@ jobs:
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           echo "## Changelog" >> $GITHUB_ENV
           echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "" >> $GITHUB_ENV
+          echo "### Checksums" >> $GITHUB_ENV
+          echo "* **Linux (tar.gz)**: \`${{ env.APP_SHA256 }}\`" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.VERSION }}
-          name: Zilium Super Compactor v${{ env.VERSION }} (Linux)
-          files: ${{ env.PACKAGE_FILE }}
+          name: Zilium Super Compactor v${{ env.VERSION }}
+          files: |
+            ${{ env.PACKAGE_FILE }}
+            ${{ env.SHA_FILE }}
           body: ${{ env.RELEASE_BODY }}
 
   build-windows:
@@ -118,28 +129,29 @@ jobs:
         shell: bash
         run: |
           PACKAGE_FILE=$(ls dist/zilium-windows-v*.zip | head -n 1)
+          SHA_FILE=$(ls dist/zilium-windows-v*.zip.sha256 | head -n 1)
           echo "PACKAGE_FILE=$PACKAGE_FILE" >> $GITHUB_ENV
+          echo "SHA_FILE=$SHA_FILE" >> $GITHUB_ENV
           PACKAGE_NAME=$(basename "$PACKAGE_FILE")
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+          
+          # Read SHA256 sum for release body (skip header line from certutil)
+          SHA_VAL=$(sed -n '2p' "$SHA_FILE" | tr -d '\r')
+          echo "APP_SHA256=$SHA_VAL" >> $GITHUB_ENV
 
-      - name: Generate Changelog
+      - name: Generate Append Body
         shell: bash
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"* %s (%h)" --no-merges)
-          else
-            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --no-merges)
-          fi
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          echo "## Changelog" >> $GITHUB_ENV
-          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "APPEND_BODY<<EOF" >> $GITHUB_ENV
+          echo "* **Windows (zip)**: \`${{ env.APP_SHA256 }}\`" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Create Release
+      - name: Update Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ env.VERSION }}
-          name: Zilium Super Compactor v${{ env.VERSION }} (Windows)
-          files: ${{ env.PACKAGE_FILE }}
-          body: ${{ env.RELEASE_BODY }}
+          files: |
+            ${{ env.PACKAGE_FILE }}
+            ${{ env.SHA_FILE }}
+          append_body: true
+          body: ${{ env.APPEND_BODY }}
