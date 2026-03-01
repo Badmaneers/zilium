@@ -73,3 +73,73 @@ jobs:
           name: Zilium Super Compactor v${{ env.VERSION }} (Linux)
           files: ${{ env.PACKAGE_FILE }}
           body: ${{ env.RELEASE_BODY }}
+
+  build-windows:
+    name: Build & Release (Windows)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up Qt (Qt6)
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.5.0'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          dir: ${{ runner.temp }}/qt
+
+      - name: Extract Version
+        id: extract_version
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=$(grep "set VERSION=" build-windows.bat | grep -o "[0-9.]*" | head -1)
+            [ -z "$VERSION" ] && VERSION="1.0.0"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Detected version: $VERSION"
+
+      - name: Build the Project (Windows)
+        shell: cmd
+        run: |
+          call build-windows.bat --release --gui --package --qt-path %Qt6_DIR%
+
+      - name: Locate Package
+        id: locate_package
+        shell: bash
+        run: |
+          PACKAGE_FILE=$(ls dist/zilium-windows-v*.zip | head -n 1)
+          echo "PACKAGE_FILE=$PACKAGE_FILE" >> $GITHUB_ENV
+          PACKAGE_NAME=$(basename "$PACKAGE_FILE")
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+
+      - name: Generate Changelog
+        shell: bash
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"* %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --no-merges)
+          fi
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "## Changelog" >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Zilium Super Compactor v${{ env.VERSION }} (Windows)
+          files: ${{ env.PACKAGE_FILE }}
+          body: ${{ env.RELEASE_BODY }}

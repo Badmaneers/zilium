@@ -12,7 +12,7 @@ REM Configuration
 REM ============================================================================
 
 set PROJECT_NAME=Zilium Super Compactor
-set VERSION=2.0
+if "%VERSION%"=="" set VERSION=2.0
 set BUILD_DIR=build
 set DIST_DIR=dist
 set PACKAGE_NAME=zilium-windows-v%VERSION%
