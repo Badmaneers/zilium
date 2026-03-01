@@ -129,21 +129,21 @@ jobs:
         shell: bash
         run: |
           PACKAGE_FILE=$(ls dist/zilium-windows-v*.zip | head -n 1)
-          SHA_FILE=$(ls dist/zilium-windows-v*.zip.sha256 | head -n 1)
+          MD5_FILE=$(ls dist/zilium-windows-v*.md5 | head -n 1)
           echo "PACKAGE_FILE=$PACKAGE_FILE" >> $GITHUB_ENV
-          echo "SHA_FILE=$SHA_FILE" >> $GITHUB_ENV
+          echo "MD5_FILE=$MD5_FILE" >> $GITHUB_ENV
           PACKAGE_NAME=$(basename "$PACKAGE_FILE")
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
           
-          # Read SHA256 sum for release body (skip header line from certutil)
-          SHA_VAL=$(sed -n '2p' "$SHA_FILE" | tr -d '\r')
-          echo "APP_SHA256=$SHA_VAL" >> $GITHUB_ENV
+          # Read MD5 sum for release body (skip header line from certutil)
+          MD5_VAL=$(sed -n '2p' "$MD5_FILE" | tr -d '\r')
+          echo "APP_MD5=$MD5_VAL" >> $GITHUB_ENV
 
       - name: Generate Append Body
         shell: bash
         run: |
           echo "APPEND_BODY<<EOF" >> $GITHUB_ENV
-          echo "* **Windows (zip)**: \`${{ env.APP_SHA256 }}\`" >> $GITHUB_ENV
+          echo "* **Windows (zip) MD5**: \`${{ env.APP_MD5 }}\`" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       - name: Update Release
@@ -152,6 +152,6 @@ jobs:
           tag_name: v${{ env.VERSION }}
           files: |
             ${{ env.PACKAGE_FILE }}
-            ${{ env.SHA_FILE }}
+            ${{ env.MD5_FILE }}
           append_body: true
           body: ${{ env.APPEND_BODY }}
