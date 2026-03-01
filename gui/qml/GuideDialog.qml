@@ -77,7 +77,7 @@ Window {
                     }
                     
                     Label {
-                        text: "Version 1.0.1"
+                        text: "Version 2.0"
                         font.pixelSize: 12
                         color: "#bbdefb"
                         Layout.alignment: Qt.AlignHCenter

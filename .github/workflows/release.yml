@@ -1,0 +1,74 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Build & Release (Linux)
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Environment & Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ qt6-base-dev qt6-declarative-dev libqt6svg6-dev libgl1-mesa-dev
+
+      - name: Extract Version
+        id: extract_version
+        run: |
+          # Try to get version from tag if triggered by tag
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            # Fallback version or get from CMakeLists etc.
+            VERSION=$(grep "project(zilium_super_compactor VERSION" CMakeLists.txt | grep -o "[0-9.]*" | head -1)
+            [ -z "$VERSION" ] && VERSION="1.0.0"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Detected version: $VERSION"
+
+      - name: Build the Project
+        run: |
+          chmod +x build.sh
+          ./build.sh --release --gui --package
+
+      - name: Locate Package
+        id: locate_package
+        run: |
+          PACKAGE_FILE=$(ls dist/zilium-super-compactor-*.tar.gz | head -n 1)
+          echo "PACKAGE_FILE=$PACKAGE_FILE" >> $GITHUB_ENV
+          PACKAGE_NAME=$(basename "$PACKAGE_FILE")
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+
+      - name: Generate Changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"* %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"* %s (%h)" --no-merges)
+          fi
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "## Changelog" >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Zilium Super Compactor v${{ env.VERSION }} (Linux)
+          files: ${{ env.PACKAGE_FILE }}
+          body: ${{ env.RELEASE_BODY }}
