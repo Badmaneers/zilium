@@ -336,6 +336,14 @@ if exist "lptools-prebuilt\win\" (
     )
 )
 
+echo Downloading Visual C++ Redistributable...
+powershell -Command "(New-Object Net.WebClient).DownloadFile('https://aka.ms/vs/17/release/vc_redist.x64.exe', '%PACKAGE_DIR%\vc_redist.x64.exe')" >nul 2>&1
+if exist "%PACKAGE_DIR%\vc_redist.x64.exe" (
+    echo       OK vc_redist.x64.exe
+) else (
+    echo       WARNING: Failed to download vc_redist.x64.exe
+)
+
 echo Copying documentation...
 
 REM Copy documentation
@@ -397,6 +405,7 @@ echo Creating README.txt...
     echo   lptools\lpunpack.exe          Android LP unpacker
     echo   lptools\lpdump.exe            Android LP dumper
     echo   lptools\cygwin1.dll           Required runtime library
+    echo   vc_redist.x64.exe             Visual C++ Redistributable Installer
     echo   run.bat                       Quick launcher
     echo   README.txt                    This file
     echo.
@@ -444,8 +453,8 @@ echo Creating README.txt...
     echo.
     echo TROUBLESHOOTING
     echo ---------------
-    echo   Q: "VCRUNTIME140.dll was not found"
-    echo   A: Install Visual C++ Redistributable
+    echo   Q: "VCRUNTIME140.dll was not found" or "MSVCP140.dll missing"
+    echo   A: Install the included vc_redist.x64.exe or download from
     echo      https://aka.ms/vs/17/release/vc_redist.x64.exe
     echo.
     echo   Q: "lpmake failed"
